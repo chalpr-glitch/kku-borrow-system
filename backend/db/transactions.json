@@ -115,5 +115,18 @@
     "actual_return_date": "",
     "status": "Pending Head",
     "reject_reason": ""
+  },
+  {
+    "transaction_id": "TX-69992",
+    "asset_id": "ASSET-TEST-99",
+    "borrower_name": "สมาชิกทดสอบ ระบบยืม",
+    "borrower_email": "test_api_member@kku.ac.th",
+    "department": "ศูนย์จัดการศึกษาตลอดชีวิต (ภารกิจสนับสนุนการจัดการศึกษาตลอดชีวิต)",
+    "head_email": "praysu@kku.ac.th",
+    "borrow_date": "2026-06-16",
+    "expected_return_date": "2026-06-22",
+    "actual_return_date": "2026-06-15",
+    "status": "Returned",
+    "reject_reason": ""
   }
 ]

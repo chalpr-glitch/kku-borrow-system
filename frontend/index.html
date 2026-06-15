@@ -3,42 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบยืม-คืนอุปกรณ์และครุภัณฑ์ | สบว. มข.</title>
+  <title>ระบบยืม-คืนครุภัณฑ์ สำนักบริการวิชาการ มหาวิทยาลัยขอนแก่น</title>
   <!-- Google Fonts & FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <!-- Chart.js CDN for interactive analytics dashboard -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Identity Services (OAuth) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
   <!-- SSO LOGIN GATE (Full screen - shown if not logged in) -->
   <div id="sso-login-gate" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--kku-orange) 0%, var(--charcoal) 100%); padding: 20px; box-sizing: border-box;">
     <div style="background: white; padding: 40px; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 15px 40px rgba(0,0,0,0.25); text-align: center;">
-      <div class="logo-icon" style="margin: 0 auto 15px auto; width: 60px; height: 60px; font-size: 24px;">OAS</div>
-      <h2 style="font-family: 'Prompt', sans-serif; font-weight: 700; font-size: 22px; color: var(--charcoal); margin-bottom: 8px;">ระบบยืม-คืนครุภัณฑ์ สบว. มข.</h2>
-      <p style="color: #666; font-size: 13px; margin-bottom: 25px;">ลงชื่อเข้าใช้งานด้วยบัญชี KKU Account (SSO)</p>
+      <img src="assets/kku_oas_logo.png" alt="OAS KKU Logo" style="margin: 0 auto 20px auto; height: 110px; display: block; object-fit: contain;">
+      <h2 style="font-family: 'Prompt', sans-serif; font-weight: 700; font-size: 20px; color: var(--charcoal); margin-bottom: 8px; line-height: 1.4;">ระบบยืม-คืนครุภัณฑ์<br>สำนักบริการวิชาการ มหาวิทยาลัยขอนแก่น</h2>
+      <p style="color: #666; font-size: 13px; margin-bottom: 25px;">ลงชื่อเข้าใช้งานด้วยบัญชี KKU Account</p>
       
       <div style="text-align: left; margin-bottom: 20px;">
-        <label for="sso-email" style="font-family: 'Prompt', sans-serif; font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">เลือกผู้ใช้งานทดสอบ (ตามบัญชีรายชื่อ สบว.)</label>
-        <select id="sso-email-select" class="filter-select" style="width: 100%; margin-bottom: 15px;" onchange="syncSsoInput()">
-          <option value="">-- ป้อนอีเมลเอง หรือ เลือกบัญชีตัวอย่างด้านล่าง --</option>
-          <option value="chukam@kku.ac.th">chukam@kku.ac.th - รศ.น.สพ.ดร.ชูชาติ (ผอ. / Role: User)</option>
-          <option value="wassjo@kku.ac.th">wassjo@kku.ac.th - น.ส.วาสนา (บัญชี / Role: Admin Staff)</option>
-          <option value="praysu@kku.ac.th">praysu@kku.ac.th - นายประหยัด (รักษาการ ผอ.กอง / Role: Head Approver)</option>
-          <option value="cprako@kku.ac.th">cprako@kku.ac.th - นางประครอง (พัสดุ / Role: User)</option>
-          <option value="chalpr@kku.ac.th">chalpr@kku.ac.th - นายชาลี (ไอที / Role: User)</option>
-        </select>
-        
         <label for="sso-email-input" style="font-family: 'Prompt', sans-serif; font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">อีเมลมหาวิทยาลัย (@kku.ac.th)</label>
-        <input type="email" id="sso-email-input" class="form-input" style="width: 100%;" placeholder="username@kku.ac.th" onkeydown="if(event.key==='Enter') executeSsoLogin()">
+        <input type="email" id="sso-email-input" class="form-input" style="width: 100%; padding: 12px; font-size: 15px;" placeholder="username@kku.ac.th" onkeydown="if(event.key==='Enter') executeSsoLogin()">
       </div>
       
-      <button class="btn btn-primary" onclick="executeSsoLogin()" style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600;">
-        <i class="fa-solid fa-key"></i> ล็อกอินด้วย KKU Account
+      <button class="btn btn-primary" onclick="executeSsoLogin()" style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600; margin-bottom: 15px;">
+        <i class="fa-solid fa-key"></i> ล็อกอินผ่านอีเมล
       </button>
       
-      <p style="margin-top: 15px; font-size: 11px; color: #999;">จำลองการทำงานระบบ Single Sign-On ตามสิทธิ์บุคลากร สบว. มข.</p>
+      <!-- Google Sign In Container (Shown dynamically if configured) -->
+      <div id="google-signin-container" style="margin-top: 15px; width: 100%;">
+        <div style="display: flex; align-items: center; margin: 15px 0; color: #aaa;">
+          <hr style="flex: 1; border: 0; border-top: 1px solid #eee;">
+          <span style="padding: 0 10px; font-size: 12px;">หรือ</span>
+          <hr style="flex: 1; border: 0; border-top: 1px solid #eee;">
+        </div>
+        <div id="google-signin-btn" style="display: flex; justify-content: center;"></div>
+      </div>
+      
+      <p style="margin-top: 20px; font-size: 11px; color: #999;">เชื่อมต่อกับระบบตรวจสอบสิทธิ์บุคลากร สำนักบริการวิชาการ มหาวิทยาลัยขอนแก่น</p>
     </div>
   </div>
 
@@ -49,7 +51,7 @@
     <header>
       <div class="nav-container">
         <div class="logo-section">
-          <div class="logo-icon">OAS</div>
+          <img src="assets/kku_oas_logo.png" alt="OAS KKU Logo" style="height: 50px; width: auto; object-fit: contain;">
           <div class="logo-text">
             <h1>ระบบยืม-คืนครุภัณฑ์</h1>
             <p>สำนักบริการวิชาการ มหาวิทยาลัยขอนแก่น</p>

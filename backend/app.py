@@ -4,6 +4,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, abort
 from flask_cors import CORS
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 # Load environment variables
 load_dotenv()
@@ -81,6 +83,68 @@ def sso_login():
             "status": user["status"]
         }
     })
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    return jsonify({
+        "google_client_id": os.getenv("GOOGLE_CLIENT_ID", "")
+    })
+
+@app.route('/api/auth/google', methods=['POST'])
+def google_login():
+    data = request.json or {}
+    token = data.get("credential")
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    
+    if not token:
+        return jsonify({"error": "ไม่พบโทเค็นความปลอดภัย"}), 400
+        
+    if not client_id:
+        return jsonify({"error": "ระบบยังไม่ได้ตั้งค่า GOOGLE_CLIENT_ID กรุณาติดต่อผู้ดูแลระบบ"}), 500
+        
+    try:
+        # Verify the Google JWT token
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), client_id)
+        
+        # Verify issuer is Google
+        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            raise ValueError('Wrong issuer.')
+            
+        email = idinfo.get('email', '').strip().lower()
+        
+        user = db.get_user_by_email(email)
+        if not user:
+            # Auto-register if it's a KKU email
+            if email.endswith('@kku.ac.th'):
+                new_user_data = {
+                    "email": email,
+                    "name": idinfo.get('name', 'ผู้ใช้ Google'),
+                    "title": "บุคลากร สบว.",
+                    "division": "สำนักบริการวิชาการ",
+                    "department": "ฝ่ายบริการวิชาการ",
+                    "status": "user"
+                }
+                db.add_user(new_user_data)
+                user = new_user_data
+            else:
+                return jsonify({"error": f"ไม่พบอีเมล {email} ในระบบ และไม่อยู่ในโดเมนมหาวิทยาลัย (@kku.ac.th)"}), 401
+                
+        return jsonify({
+            "message": "เข้าสู่ระบบด้วย Google สำเร็จ",
+            "user": {
+                "email": user["email"],
+                "name": user["name"],
+                "title": user.get("title", "บุคลากร"),
+                "division": user.get("division", "สำนักบริการวิชาการ"),
+                "department": user.get("department", "ฝ่ายบริการวิชาการ"),
+                "status": user["status"]
+            }
+        })
+        
+    except ValueError as e:
+        return jsonify({"error": f"โทเค็นไม่ถูกต้อง: {str(e)}"}), 401
+    except Exception as e:
+        return jsonify({"error": f"เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: {str(e)}"}), 500
 
 @app.route('/api/assets', methods=['GET'])
 def get_assets():

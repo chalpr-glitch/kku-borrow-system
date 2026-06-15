@@ -106,7 +106,7 @@ function getRoleLabel(status) {
 function syncSsoInput() {
   const select = document.getElementById('sso-email-select');
   const input = document.getElementById('sso-email-input');
-  if (select.value) {
+  if (select && input && select.value) {
     input.value = select.value;
   }
 }
@@ -138,6 +138,61 @@ async function executeSsoLogin() {
     switchView('browse-view');
   } catch (error) {
     showToast(error.message, 'error');
+  }
+}
+
+// Google Credential Response callback
+async function handleCredentialResponse(response) {
+  try {
+    const res = await fetch(`${API_URL}/api/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential })
+    });
+
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error);
+
+    // Save session in local storage
+    localStorage.setItem('user_session', JSON.stringify(result.user));
+    showToast(result.message, 'success');
+    
+    // Check session, switch views, and reload user list
+    checkSsoSession();
+    switchView('browse-view');
+    await fetchUsersList();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+// Load Google Client ID and initialize OAuth button dynamically
+async function loadGoogleAuth() {
+  const container = document.getElementById("google-signin-container");
+  const btn = document.getElementById("google-signin-btn");
+  if (!container || !btn) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/config`);
+    const config = await res.json();
+    if (config.google_client_id) {
+      container.style.display = 'block';
+      window.google?.accounts.id.initialize({
+        client_id: config.google_client_id,
+        callback: handleCredentialResponse
+      });
+      window.google?.accounts.id.renderButton(btn, {
+        theme: "outline",
+        size: "large",
+        width: "300",
+        text: "continue_with"
+      });
+    } else {
+      container.style.display = 'none';
+    }
+  } catch (err) {
+    console.error("Failed to load Google Auth configuration:", err);
+    container.style.display = 'none';
   }
 }
 
@@ -1348,7 +1403,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (sessionStr) {
     await fetchUsersList();
   } else {
-    // Populate dropdown with fallback samples on login screen
+    // Populate dropdown logic if element is present
     allUsers = [
       { email: "chukam@kku.ac.th", name: "รศ.น.สพ.ดร.ชูชาติ กมลเลิศ", status: "user" },
       { email: "wassjo@kku.ac.th", name: "นางสาววาสนา ขจรกิตติพงษ์", status: "admin/ staff" },
@@ -1357,6 +1412,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       { email: "chalpr@kku.ac.th", name: "นายชาลี พรหมอินทร์", status: "user" }
     ];
     updateSsoDropdown();
+    // Load Google authentication flow
+    loadGoogleAuth();
   }
   
   // Load asset catalog
