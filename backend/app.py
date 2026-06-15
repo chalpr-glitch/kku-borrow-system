@@ -283,6 +283,16 @@ def create_transaction():
     if asset.get("status") != "Available":
         return jsonify({"error": "ขออภัย อุปกรณ์นี้ไม่พร้อมใช้งานในขณะนี้"}), 400
         
+    # Ensure return date is not before borrow date
+    try:
+        b_date = datetime.strptime(data["borrow_date"], "%Y-%m-%d")
+        r_date = datetime.strptime(data["expected_return_date"], "%Y-%m-%d")
+        if r_date < b_date:
+            return jsonify({"error": "กำหนดวันคืนต้องไม่เกิดขึ้นก่อนวันที่เริ่มยืม"}), 400
+    except ValueError:
+        return jsonify({"error": "รูปแบบวันที่ไม่ถูกต้อง (YYYY-MM-DD)"}), 400
+
+        
     tx_id = generate_tx_id()
     new_tx = {
         "transaction_id": tx_id,
