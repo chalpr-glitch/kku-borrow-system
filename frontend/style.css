@@ -935,3 +935,101 @@ footer p {
 
 .toast.success { background-color: var(--success); }
 .toast.error { background-color: var(--danger); }
+
+/* --- CATEGORY SELECTOR TABS --- */
+.category-selector-container {
+  margin-bottom: 25px;
+}
+
+.category-selector-title {
+  font-family: 'Prompt', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--charcoal);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.category-tab-btn {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 15px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  text-align: center;
+}
+
+.category-tab-btn:hover {
+  transform: translateY(-3px);
+  border-color: #ffb088;
+  box-shadow: 0 4px 12px rgba(241, 90, 34, 0.08);
+}
+
+.category-tab-btn.active {
+  background: linear-gradient(135deg, var(--kku-orange) 0%, #ff7842 100%);
+  border-color: var(--kku-orange);
+  color: white;
+  box-shadow: 0 8px 16px rgba(241, 90, 34, 0.2);
+}
+
+.tab-icon-wrapper {
+  font-size: 24px;
+  color: var(--kku-orange);
+  transition: color 0.3s ease;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(241, 90, 34, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-tab-btn.active .tab-icon-wrapper {
+  color: var(--kku-orange);
+  background: white;
+}
+
+.tab-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tab-title {
+  font-family: 'Prompt', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--charcoal);
+  transition: color 0.3s ease;
+}
+
+.category-tab-btn.active .tab-title {
+  color: white;
+}
+
+.tab-subtitle {
+  font-family: 'Sarabun', sans-serif;
+  font-size: 11px;
+  color: #6b7280;
+  transition: color 0.3s ease;
+}
+
+.category-tab-btn.active .tab-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+}

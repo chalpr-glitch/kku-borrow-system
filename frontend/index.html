@@ -91,20 +91,54 @@
           <p>บริการยืมอุปกรณ์คอมพิวเตอร์ โสตทัศนูปกรณ์ และเครื่องมือสนับสนุนสำหรับการทำงานภายใน สบว. มข.</p>
         </div>
 
+        <!-- Category Selector Grid/Tabs -->
+        <div class="category-selector-container">
+          <p class="category-selector-title"><i class="fa-solid fa-list-check"></i> เลือกประเภทอุปกรณ์ที่ต้องการยืม:</p>
+          <div class="category-tabs" id="category-tabs-container">
+            <button class="category-tab-btn active" data-category="Notebook" onclick="selectCategory('Notebook')">
+              <div class="tab-icon-wrapper"><i class="fa-solid fa-laptop"></i></div>
+              <div class="tab-text">
+                <span class="tab-title">Notebook</span>
+                <span class="tab-subtitle">โน้ตบุ๊ก</span>
+              </div>
+            </button>
+            <button class="category-tab-btn" data-category="Projector" onclick="selectCategory('Projector')">
+              <div class="tab-icon-wrapper"><i class="fa-solid fa-display"></i></div>
+              <div class="tab-text">
+                <span class="tab-title">Projector</span>
+                <span class="tab-subtitle">โปรเจกเตอร์</span>
+              </div>
+            </button>
+            <button class="category-tab-btn" data-category="Tablet" onclick="selectCategory('Tablet')">
+              <div class="tab-icon-wrapper"><i class="fa-solid fa-tablet-screen-button"></i></div>
+              <div class="tab-text">
+                <span class="tab-title">Tablet</span>
+                <span class="tab-subtitle">แท็บเล็ต</span>
+              </div>
+            </button>
+            <button class="category-tab-btn" data-category="Camera" onclick="selectCategory('Camera')">
+              <div class="tab-icon-wrapper"><i class="fa-solid fa-camera"></i></div>
+              <div class="tab-text">
+                <span class="tab-title">Camera</span>
+                <span class="tab-subtitle">กล้องถ่ายภาพ</span>
+              </div>
+            </button>
+            <button class="category-tab-btn" data-category="Audio" onclick="selectCategory('Audio')">
+              <div class="tab-icon-wrapper"><i class="fa-solid fa-microphone-lines"></i></div>
+              <div class="tab-text">
+                <span class="tab-title">Audio</span>
+                <span class="tab-subtitle">ระบบเสียง/ไมโครโฟน</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <!-- Filters & Search -->
         <div class="filter-bar">
           <div class="search-input-wrapper">
             <i class="fa-solid fa-magnifying-glass search-icon"></i>
-            <input type="text" id="asset-search" placeholder="ค้นหาด้วยชื่ออุปกรณ์ หรือ รหัสครุภัณฑ์..." oninput="filterAssets()">
+            <input type="text" id="asset-search" placeholder="ค้นหาด้วยชื่ออุปกรณ์ หรือ รหัสครุภัณฑ์ ในประเภทที่เลือก..." oninput="filterAssets()">
           </div>
-          <select id="category-filter" class="filter-select" onchange="filterAssets()">
-            <option value="">ทุกประเภทอุปกรณ์</option>
-            <option value="Notebook">Notebook (โน้ตบุ๊ก)</option>
-            <option value="Projector">Projector (โปรเจกเตอร์)</option>
-            <option value="Tablet">Tablet (แท็บเล็ต)</option>
-            <option value="Camera">Camera (กล้องถ่ายภาพ)</option>
-            <option value="Audio">Audio (ระบบเสียง/ไมโครโฟน)</option>
-          </select>
         </div>
 
         <!-- Asset Grid -->

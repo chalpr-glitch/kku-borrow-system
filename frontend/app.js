@@ -3,6 +3,7 @@ const API_URL = window.location.origin;
 let allAssets = [];
 let adminTransactions = [];
 let activeAdminTab = 'tab-summary';
+let selectedCategory = 'Notebook';
 
 // Toast Notification helper
 function showToast(message, type = 'info') {
@@ -271,7 +272,7 @@ async function fetchAssets() {
     const response = await fetch(`${API_URL}/api/assets`);
     if (!response.ok) throw new Error('ไม่สามารถโหลดข้อมูลครุภัณฑ์ได้');
     allAssets = await response.json();
-    renderAssets(allAssets);
+    selectCategory(selectedCategory);
   } catch (error) {
     console.error(error);
     container.innerHTML = `
@@ -290,7 +291,7 @@ function renderAssets(assets) {
     container.innerHTML = `
       <div style="text-align: center; grid-column: 1/-1; padding: 40px; color: #888;">
         <i class="fa-solid fa-magnifying-glass" style="font-size: 32px; margin-bottom: 10px;"></i>
-        <p>ไม่พบครุภัณฑ์ที่ตรงกับเงื่อนไขการค้นหา</p>
+        <p>ไม่พบครุภัณฑ์ที่ตรงกับเงื่อนไขการค้นหา ในประเภทที่เลือก</p>
       </div>
     `;
     return;
@@ -345,15 +346,28 @@ function getCategoryThai(cat) {
   return mapping[cat] || cat;
 }
 
+function selectCategory(category) {
+  selectedCategory = category;
+  
+  document.querySelectorAll('.category-tab-btn').forEach(btn => {
+    if (btn.getAttribute('data-category') === category) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  filterAssets();
+}
+
 function filterAssets() {
   const searchQuery = document.getElementById('asset-search').value.toLowerCase().trim();
-  const categoryFilter = document.getElementById('category-filter').value;
 
   const filtered = allAssets.filter(asset => {
     const matchesSearch = asset.asset_name.toLowerCase().includes(searchQuery) || 
                           asset.asset_id.toLowerCase().includes(searchQuery) ||
                           asset.serial_number.toLowerCase().includes(searchQuery);
-    const matchesCategory = categoryFilter === '' || asset.category === categoryFilter;
+    const matchesCategory = selectedCategory === '' || asset.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
