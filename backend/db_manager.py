@@ -63,7 +63,21 @@ class DatabaseManager:
                     self.use_google_sheets = True
                     logger.info("Successfully connected to Google Sheets database.")
                 except Exception as e:
-                    logger.error(f"Failed to connect to Google Sheets: {e}. Falling back to local JSON database.")
+                    sa_email = "Unknown"
+                    try:
+                        with open(self.credentials_path, "r") as f:
+                            c_data = json.load(f)
+                            sa_email = c_data.get("client_email", "Unknown")
+                    except Exception:
+                        pass
+                    
+                    err_msg = str(e)
+                    if not err_msg:
+                        err_msg = "SpreadsheetNotFound (Please verify your SPREADSHEET_ID and make sure you have shared the spreadsheet)"
+                    
+                    logger.error(f"Failed to connect to Google Sheets: {err_msg}. "
+                                 f"Please share your Google Sheet with the Service Account email: '{sa_email}' as Editor. "
+                                 f"Falling back to local JSON database.")
             else:
                 logger.warning(f"Google credentials file not found at {self.credentials_path}. Falling back to local JSON database.")
         else:
