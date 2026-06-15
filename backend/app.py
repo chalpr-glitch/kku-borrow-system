@@ -35,9 +35,9 @@ def get_authorized_user(req):
     if token == master_pwd:
         return {
             "email": "admin_oas@kku.ac.th",
-            "name": "เจ้าหน้าที่พัสดุ (ระบบ)",
+            "name": "นักเทคโนโลยีสารสนเทศ (ระบบ)",
             "status": "admin/ staff",
-            "department": "ภารกิจแผน การเงิน และพัสดุ"
+            "department": "ภารกิจสารสนเทศและบริหารงานทั่วไป"
         }
         
     # Standard check: email token lookup in user database
@@ -94,7 +94,7 @@ def get_assets():
 def add_new_asset():
     user = get_authorized_user(request)
     if not user or user.get("status") != "admin/ staff":
-        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการเฉพาะเจ้าหน้าที่พัสดุเท่านั้น"}), 403
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
         
     data = request.json or {}
     required = ["asset_id", "asset_name", "category", "serial_number"]
@@ -126,7 +126,7 @@ def add_new_asset():
 def delete_asset(asset_id):
     user = get_authorized_user(request)
     if not user or user.get("status") != "admin/ staff":
-        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการเฉพาะเจ้าหน้าที่พัสดุเท่านั้น"}), 403
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
         
     asset = db.get_asset_by_id(asset_id)
     if not asset:
@@ -216,7 +216,7 @@ def create_transaction():
 def admin_action(tx_id):
     user = get_authorized_user(request)
     if not user or user.get("status") != "admin/ staff":
-        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะเจ้าหน้าที่พัสดุเท่านั้น"}), 403
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
         
     data = request.json or {}
     action = data.get("action")
@@ -245,7 +245,7 @@ def admin_action(tx_id):
         db.update_transaction_status(tx_id, "Rejected", reject_reason=reject_reason)
         tx["status"] = "Rejected"
         tx["reject_reason"] = reject_reason
-        emails.notify_borrower_rejected(tx, asset, f"เจ้าหน้าที่พัสดุ ({user['name']})", reject_reason)
+        emails.notify_borrower_rejected(tx, asset, f"นักเทคโนโลยีสารสนเทศ ({user['name']})", reject_reason)
         return jsonify({"message": "ปฏิเสธคำขอเรียบร้อยแล้ว"})
         
     return jsonify({"error": "การทำงานไม่ถูกต้อง"}), 400
@@ -300,7 +300,7 @@ def head_action(tx_id):
 def return_asset(tx_id):
     user = get_authorized_user(request)
     if not user or user.get("status") != "admin/ staff":
-        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะเจ้าหน้าที่พัสดุเท่านั้น"}), 403
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
         
     tx = db.get_transaction_by_id(tx_id)
     if not tx:
@@ -407,7 +407,7 @@ def get_users_list():
 def add_new_user():
     user = get_authorized_user(request)
     if not user or user.get("status") != "admin/ staff":
-        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะเจ้าหน้าที่พัสดุเท่านั้น"}), 403
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
         
     data = request.json or {}
     required = ["email", "name", "division", "department", "status"]
@@ -440,7 +440,7 @@ def add_new_user():
 def delete_user(email):
     caller = get_authorized_user(request)
     if not caller or caller.get("status") != "admin/ staff":
-        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะเจ้าหน้าที่พัสดุเท่านั้น"}), 403
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
         
     email_clean = email.strip().lower()
     

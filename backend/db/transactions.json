@@ -102,5 +102,18 @@
     "actual_return_date": "2026-06-15",
     "status": "Returned",
     "reject_reason": ""
+  },
+  {
+    "transaction_id": "TX-60791",
+    "asset_id": "6620070000009",
+    "borrower_name": "นายชาลี พรหมอินทร์",
+    "borrower_email": "chalpr@kku.ac.th",
+    "department": "กองบริหารงานสำนักบริการวิชาการ (ภารกิจสารสนเทศและบริหารงานทั่วไป)",
+    "head_email": "praysu@kku.ac.th",
+    "borrow_date": "2026-06-15",
+    "expected_return_date": "2026-06-24",
+    "actual_return_date": "",
+    "status": "Pending Head",
+    "reject_reason": ""
   }
 ]

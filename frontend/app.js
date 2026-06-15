@@ -97,7 +97,7 @@ function checkSsoSession() {
 }
 
 function getRoleLabel(status) {
-  if (status === 'admin/ staff') return 'เจ้าหน้าที่พัสดุ';
+  if (status === 'admin/ staff') return 'นักเทคโนโลยีสารสนเทศ';
   if (status === 'admin / Approve') return 'หัวหน้างานอนุมัติ';
   return 'บุคลากร สบว.';
 }
@@ -422,7 +422,7 @@ async function trackUserStatus() {
       let statusClass = '';
 
       if (tx.status === 'Pending Admin') {
-        statusText = 'รอเจ้าหน้าที่พัสดุคัดกรอง';
+        statusText = 'รอนักเทคโนโลยีสารสนเทศคัดกรอง';
         statusClass = 'pending-admin';
       } else if (tx.status === 'Pending Head') {
         statusText = 'รอหัวหน้างานพิจารณาอนุมัติ';

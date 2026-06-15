@@ -89,7 +89,7 @@ class EmailHelper:
                 <p>สำนักบริการวิชาการ มหาวิทยาลัยขอนแก่น (OAS KKU)</p>
             </div>
             <div style="padding: 20px; color: #333333; line-height: 1.6;">
-                <p>เรียน <b>เจ้าหน้าที่พัสดุ</b>,</p>
+                <p>เรียน <b>นักเทคโนโลยีสารสนเทศ</b>,</p>
                 <p>มีคำขอยืมครุภัณฑ์ใหม่เข้ามาในระบบ รายละเอียดดังนี้:</p>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr style="background-color: #f9f9f9;"><td style="padding: 8px; font-weight: bold; width: 40%;">รหัสธุรกรรม:</td><td style="padding: 8px;">{tx['transaction_id']}</td></tr>
