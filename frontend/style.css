@@ -626,6 +626,16 @@ main {
   background-color: #b91c1c;
 }
 
+.btn-warning {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #d97706;
+}
+
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

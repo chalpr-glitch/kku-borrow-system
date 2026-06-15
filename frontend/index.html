@@ -570,6 +570,113 @@
       </div>
     </div>
 
+    <!-- Modal 3: Edit Asset Modal -->
+    <div class="modal-backdrop" id="edit-asset-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-pen-to-square" style="color: var(--kku-orange);"></i> แก้ไขรายละเอียดครุภัณฑ์</h3>
+          <button class="modal-close-btn" onclick="closeModal('edit-asset-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="edit-asset-form" onsubmit="executeEditAsset(event)">
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-asset-id">รหัสครุภัณฑ์ (ไม่สามารถแก้ไขได้)</label>
+              <input type="text" id="edit-asset-id" class="form-input" style="background-color: #f3f4f6; color: #555;" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-asset-name">ชื่อครุภัณฑ์และรุ่น <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="edit-asset-name" class="form-input" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-asset-category">ประเภทอุปกรณ์ <span style="color:var(--danger)">*</span></label>
+              <select id="edit-asset-category" class="filter-select" style="min-width: 100%" required>
+                <option value="Notebook">Notebook (โน้ตบุ๊ก)</option>
+                <option value="Projector">Projector (โปรเจกเตอร์)</option>
+                <option value="Tablet">Tablet (แท็บเล็ต)</option>
+                <option value="Camera">Camera (กล้องถ่ายภาพ)</option>
+                <option value="Audio">Audio (ระบบเสียง/ไมโครโฟน)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-asset-serial">Serial Number <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="edit-asset-serial" class="form-input" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-asset-status">สถานะครุภัณฑ์ <span style="color:var(--danger)">*</span></label>
+              <select id="edit-asset-status" class="filter-select" style="min-width: 100%" required>
+                <option value="Available">พร้อมใช้งาน (Available)</option>
+                <option value="Borrowed">ถูกยืม (Borrowed)</option>
+                <option value="Maintenance">ซ่อมบำรุง (Maintenance)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 5px;">
+              <label for="edit-asset-img-input">รูปภาพครุภัณฑ์ (URL)</label>
+              <input type="text" id="edit-asset-img-input" class="form-input" placeholder="https://...">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('edit-asset-modal')">ยกเลิก</button>
+          <button type="submit" form="edit-asset-form" class="btn btn-primary">
+            <i class="fa-solid fa-save"></i> บันทึกการแก้ไข
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 4: Edit User Modal -->
+    <div class="modal-backdrop" id="edit-user-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-user-pen" style="color: var(--kku-orange);"></i> แก้ไขข้อมูลผู้ใช้งาน</h3>
+          <button class="modal-close-btn" onclick="closeModal('edit-user-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="edit-user-form" onsubmit="executeEditUser(event)">
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-user-email">อีเมลมหาวิทยาลัย (ไม่สามารถแก้ไขได้)</label>
+              <input type="email" id="edit-user-email" class="form-input" style="background-color: #f3f4f6; color: #555;" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-user-name">ชื่อ-นามสกุล <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="edit-user-name" class="form-input" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-user-title">ตำแหน่งสายงาน</label>
+              <input type="text" id="edit-user-title" class="form-input">
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-user-admin-title">ตำแหน่งบริหาร (ถ้ามี)</label>
+              <input type="text" id="edit-user-admin-title" class="form-input">
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-user-division">หน่วยงาน <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="edit-user-division" class="form-input" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="edit-user-department">ฝ่าย/ภารกิจ <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="edit-user-department" class="form-input" required>
+            </div>
+            <div class="form-group" style="margin-bottom: 5px;">
+              <label for="edit-user-status">สิทธิ์การใช้งานระบบ <span style="color:var(--danger)">*</span></label>
+              <select id="edit-user-status" class="filter-select" style="min-width: 100%" required>
+                <option value="user">user (บุคลากรทั่วไป)</option>
+                <option value="admin/ staff">admin/ staff (นักเทคโนโลยีสารสนเทศ)</option>
+                <option value="admin / Approve">admin / Approve (หัวหน้างานอนุมัติ)</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('edit-user-modal')">ยกเลิก</button>
+          <button type="submit" form="edit-user-form" class="btn btn-primary">
+            <i class="fa-solid fa-save"></i> บันทึกการแก้ไข
+          </button>
+        </div>
+      </div>
+    </div>
+
+
     <!-- Dynamic Toast Alert System -->
     <div class="toast" id="toast-notification">
       <i class="fa-solid fa-circle-info" id="toast-icon"></i>

@@ -204,6 +204,35 @@ def delete_asset(asset_id):
         return jsonify({"message": f"ลบครุภัณฑ์ {asset_id} สำเร็จแล้ว"})
     return jsonify({"error": "เกิดข้อผิดพลาดในการลบข้อมูล"}), 500
 
+@app.route('/api/assets/<asset_id>', methods=['PUT'])
+def update_asset_route(asset_id):
+    user = get_authorized_user(request)
+    if not user or user.get("status") != "admin/ staff":
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
+        
+    data = request.json or {}
+    asset = db.get_asset_by_id(asset_id)
+    if not asset:
+        return jsonify({"error": "ไม่พบครุภัณฑ์ดังกล่าวในระบบ"}), 404
+        
+    # Validation
+    if not data.get("asset_name") or not data.get("category") or not data.get("serial_number"):
+        return jsonify({"error": "ข้อมูลไม่ครบถ้วน กรุณากรอก ชื่อครุภัณฑ์, ประเภท, และ Serial Number"}), 400
+        
+    # Populate updated details (keep status and image_url if not provided)
+    update_data = {
+        "asset_name": data["asset_name"].strip(),
+        "category": data["category"].strip(),
+        "serial_number": data["serial_number"].strip(),
+        "status": data.get("status", asset.get("status", "Available")),
+        "image_url": data.get("image_url", asset.get("image_url", "assets/macbook_pro.png"))
+    }
+    
+    if db.update_asset(asset_id, update_data):
+        return jsonify({"message": "แก้ไขข้อมูลครุภัณฑ์สำเร็จ", "asset": update_data})
+    return jsonify({"error": "เกิดข้อผิดพลาดในการแก้ไขข้อมูล"}), 500
+
+
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
     user = get_authorized_user(request)
@@ -518,6 +547,37 @@ def delete_user(email):
     if db.delete_user_by_email(email_clean):
         return jsonify({"message": f"ลบผู้ใช้งาน {email_clean} สำเร็จแล้ว"})
     return jsonify({"error": "เกิดข้อผิดพลาดในการลบข้อมูล"}), 500
+
+@app.route('/api/users/<email>', methods=['PUT'])
+def update_user_route(email):
+    caller = get_authorized_user(request)
+    if not caller or caller.get("status") != "admin/ staff":
+        return jsonify({"error": "ไม่มีสิทธิ์ดำเนินการ เฉพาะนักเทคโนโลยีสารสนเทศเท่านั้น"}), 403
+        
+    data = request.json or {}
+    email_clean = email.strip().lower()
+    
+    target_user = db.get_user_by_email(email_clean)
+    if not target_user:
+        return jsonify({"error": "ไม่พบข้อมูลผู้ใช้งานนี้ในระบบ"}), 404
+        
+    # Validation
+    if not data.get("name") or not data.get("division") or not data.get("department") or not data.get("status"):
+        return jsonify({"error": "ข้อมูลไม่ครบถ้วน กรุณากรอก ชื่อ-นามสกุล, กอง, ฝ่าย, และสิทธิ์การใช้งาน"}), 400
+        
+    update_data = {
+        "name": data["name"].strip(),
+        "title": data.get("title", "").strip(),
+        "admin_title": data.get("admin_title", "").strip(),
+        "division": data["division"].strip(),
+        "department": data["department"].strip(),
+        "status": data["status"].strip()
+    }
+    
+    if db.update_user(email_clean, update_data):
+        return jsonify({"message": "แก้ไขข้อมูลผู้ใช้งานสำเร็จ", "user": update_data})
+    return jsonify({"error": "เกิดข้อผิดพลาดในการแก้ไขข้อมูล"}), 500
+
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5001))

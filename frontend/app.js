@@ -1099,6 +1099,69 @@ async function executeDeleteAsset(assetId) {
   }
 }
 
+
+// Open Edit Asset Modal and Prefill details
+function openEditAssetModal(assetId) {
+  const asset = allAssets.find(a => a.asset_id === assetId);
+  if (!asset) {
+    showToast('ไม่พบข้อมูลครุภัณฑ์ดังกล่าว', 'error');
+    return;
+  }
+  
+  document.getElementById('edit-asset-id').value = asset.asset_id;
+  document.getElementById('edit-asset-name').value = asset.asset_name;
+  document.getElementById('edit-asset-category').value = asset.category;
+  document.getElementById('edit-asset-serial').value = asset.serial_number;
+  document.getElementById('edit-asset-status').value = asset.status || 'Available';
+  document.getElementById('edit-asset-img-input').value = asset.image_url || '';
+  
+  openModal('edit-asset-modal');
+}
+
+// API Call: Update Asset details
+async function executeEditAsset(event) {
+  event.preventDefault();
+  
+  const id = document.getElementById('edit-asset-id').value;
+  const name = document.getElementById('edit-asset-name').value.trim();
+  const category = document.getElementById('edit-asset-category').value;
+  const serial = document.getElementById('edit-asset-serial').value.trim();
+  const status = document.getElementById('edit-asset-status').value;
+  const imageUrl = document.getElementById('edit-asset-img-input').value.trim();
+  
+  const payload = {
+    asset_name: name,
+    category: category,
+    serial_number: serial,
+    status: status,
+    image_url: imageUrl
+  };
+  
+  try {
+    const response = await fetch(`${API_URL}/api/assets/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'เกิดข้อผิดพลาดในการบันทึกการแก้ไข');
+    
+    showToast('แก้ไขข้อมูลครุภัณฑ์เรียบร้อยแล้ว!', 'success');
+    closeModal('edit-asset-modal');
+    
+    // Refresh lists
+    await fetchAssets();
+    renderManageAssetsTable();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+
 // Render Manage Assets Table list
 function renderManageAssetsTable() {
   const tbody = document.getElementById('table-manage-assets-body');
@@ -1132,7 +1195,10 @@ function renderManageAssetsTable() {
         </td>
         <td>${asset.serial_number}</td>
         <td><span class="status-label ${statusClass}" style="padding: 2px 6px; font-size:11px;">${statusThai}</span></td>
-        <td style="text-align: center;">
+        <td style="text-align: center; white-space: nowrap;">
+          <button class="btn btn-warning" style="padding: 4px 8px; font-size: 11px; margin-right: 5px;" onclick="openEditAssetModal('${asset.asset_id}')">
+            <i class="fa-solid fa-pen-to-square"></i> แก้ไข
+          </button>
           <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="executeDeleteAsset('${asset.asset_id}')" ${asset.status === 'Borrowed' ? 'disabled' : ''}>
             <i class="fa-solid fa-trash-can"></i> ลบ
           </button>
@@ -1282,7 +1348,10 @@ function renderManageUsersTable() {
           <div style="font-size:10px; color:#888;">${u.department}</div>
         </td>
         <td><span class="status-label ${u.status === 'admin/ staff' ? 'approved' : u.status === 'admin / Approve' ? 'pending-head' : 'returned'}" style="padding: 2px 6px; font-size:11px;">${getRoleLabel(u.status)}</span></td>
-        <td style="text-align: center;">
+        <td style="text-align: center; white-space: nowrap;">
+          <button class="btn btn-warning" style="padding: 4px 8px; font-size: 11px; margin-right: 5px;" onclick="openEditUserModal('${u.email}')">
+            <i class="fa-solid fa-pen-to-square"></i> แก้ไข
+          </button>
           <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="executeDeleteUser('${u.email}')" ${isSelf ? 'disabled' : ''}>
             <i class="fa-solid fa-trash-can"></i> ลบ
           </button>

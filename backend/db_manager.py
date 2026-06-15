@@ -261,6 +261,58 @@ class DatabaseManager:
                 logger.error(f"Error updating local asset status: {e}")
         return False
 
+    def update_asset(self, asset_id, asset_data):
+        """Update existing asset details."""
+        if self.use_google_sheets:
+            try:
+                headers = self.assets_sheet.row_values(1)
+                asset_id_col = headers.index("asset_id") + 1
+                col_values = self.assets_sheet.col_values(asset_id_col)
+                row_idx = -1
+                for idx, val in enumerate(col_values[1:], start=2):
+                    if str(val) == str(asset_id):
+                        row_idx = idx
+                        break
+                
+                if row_idx != -1:
+                    row_values = self.assets_sheet.row_values(row_idx)
+                    while len(row_values) < len(headers):
+                        row_values.append("")
+                    
+                    for idx, h in enumerate(headers):
+                        if h in asset_data and h != "asset_id":
+                            row_values[idx] = asset_data[h]
+                    
+                    range_label = f"A{row_idx}:{chr(65 + len(headers) - 1)}{row_idx}"
+                    self.assets_sheet.update(range_label, [row_values])
+                    logger.info(f"Updated asset {asset_id} in Google Sheets.")
+            except Exception as e:
+                logger.error(f"Google Sheets error in update_asset: {e}")
+                
+        with self.lock:
+            try:
+                with open(self.local_assets_path, "r", encoding="utf-8") as f:
+                    assets = json.load(f)
+                
+                updated = False
+                for asset in assets:
+                    if asset.get("asset_id") == asset_id:
+                        for k, v in asset_data.items():
+                            if k != "asset_id":
+                                asset[k] = v
+                        updated = True
+                        break
+                
+                if updated:
+                    with open(self.local_assets_path, "w", encoding="utf-8") as f:
+                        json.dump(assets, f, ensure_ascii=False, indent=2)
+                    logger.info(f"Updated asset {asset_id} locally.")
+                    return True
+            except Exception as e:
+                logger.error(f"Error updating local asset: {e}")
+        return False
+
+
     # --- Transactions DB Methods ---
 
     def get_all_transactions(self):
@@ -456,3 +508,57 @@ class DatabaseManager:
             except Exception as e:
                 logger.error(f"Error deleting local user: {e}")
         return False
+
+    def update_user(self, email, user_data):
+        """Update existing user details."""
+        email_clean = email.strip().lower()
+        if self.use_google_sheets and self.users_sheet:
+            try:
+                headers = self.users_sheet.row_values(1)
+                email_col = headers.index("email") + 1
+                col_values = self.users_sheet.col_values(email_col)
+                row_idx = -1
+                for idx, val in enumerate(col_values[1:], start=2):
+                    if str(val).strip().lower() == email_clean:
+                        row_idx = idx
+                        break
+                
+                if row_idx != -1:
+                    row_values = self.users_sheet.row_values(row_idx)
+                    while len(row_values) < len(headers):
+                        row_values.append("")
+                    
+                    for idx, h in enumerate(headers):
+                        if h in user_data and h != "email":
+                            val = user_data[h]
+                            row_values[idx] = val
+                    
+                    range_label = f"A{row_idx}:{chr(65 + len(headers) - 1)}{row_idx}"
+                    self.users_sheet.update(range_label, [row_values])
+                    logger.info(f"Updated user {email_clean} in Google Sheets.")
+            except Exception as e:
+                logger.error(f"Google Sheets error in update_user: {e}")
+                
+        with self.lock:
+            try:
+                with open(self.local_users_path, "r", encoding="utf-8") as f:
+                    users = json.load(f)
+                
+                updated = False
+                for user in users:
+                    if user.get("email", "").strip().lower() == email_clean:
+                        for k, v in user_data.items():
+                            if k != "email":
+                                user[k] = v
+                        updated = True
+                        break
+                
+                if updated:
+                    with open(self.local_users_path, "w", encoding="utf-8") as f:
+                        json.dump(users, f, ensure_ascii=False, indent=2)
+                    logger.info(f"Updated user {email_clean} locally.")
+                    return True
+            except Exception as e:
+                logger.error(f"Error updating local user: {e}")
+        return False
+

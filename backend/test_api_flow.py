@@ -40,6 +40,26 @@ def run_integration_flow():
     assert new_user is not None, "Created user not found in database"
     print(f"Verified user in DB: {new_user['name']} | Role: {new_user['status']}")
 
+    # 2.5 Edit the newly created user details
+    print("\nStep 2.5: Admin editing user details...")
+    edit_user_payload = {
+        "name": "สมาชิกทดสอบ ระบบยืม (แก้ไข)",
+        "title": "นักวิชาการคอมพิวเตอร์",
+        "division": "ศูนย์จัดการศึกษาตลอดชีวิต",
+        "department": "ภารกิจคอมพิวเตอร์และเครือข่าย",
+        "status": "user"
+    }
+    res = requests.put(f"{BASE_URL}/api/users/test_api_member@kku.ac.th", headers=admin_headers, json=edit_user_payload)
+    assert res.status_code == 200, f"Failed to update user: {res.text}"
+    print(f"User updated: {res.json()['message']}")
+
+    # Verify user is updated in directory
+    res = requests.get(f"{BASE_URL}/api/users", headers=admin_headers)
+    users = res.json()
+    new_user = next((u for u in users if u["email"] == "test_api_member@kku.ac.th"), None)
+    assert new_user["name"] == "สมาชิกทดสอบ ระบบยืม (แก้ไข)", "User name update not saved"
+    print(f"Verified user details updated: {new_user['name']} | Department: {new_user['department']}")
+
     # 3. Test SSO login for the newly registered user
     print("\nStep 3: Testing SSO login for new user (test_api_member@kku.ac.th)...")
     res = requests.post(f"{BASE_URL}/api/auth/sso", json={"email": "test_api_member@kku.ac.th"})
@@ -59,6 +79,26 @@ def run_integration_flow():
     res = requests.post(f"{BASE_URL}/api/assets", headers=admin_headers, json=new_asset_payload)
     assert res.status_code == 201, f"Failed to register asset: {res.text}"
     print(f"Asset registered: {res.json()['message']}")
+
+    # 4.5 Admin edits the newly registered asset details
+    print("\nStep 4.5: Admin editing asset details...")
+    edit_asset_payload = {
+        "asset_name": "Test Asset DSLR Camera (Edited)",
+        "category": "Camera",
+        "serial_number": "SN-999-TEST-EDITED",
+        "image_url": "assets/sony_camera.png",
+        "status": "Available"
+    }
+    res = requests.put(f"{BASE_URL}/api/assets/ASSET-TEST-99", headers=admin_headers, json=edit_asset_payload)
+    assert res.status_code == 200, f"Failed to update asset: {res.text}"
+    print(f"Asset updated: {res.json()['message']}")
+
+    # Verify asset is updated in catalog
+    res = requests.get(f"{BASE_URL}/api/assets")
+    assets = res.json()
+    edited_asset = next((a for a in assets if a["asset_id"] == "ASSET-TEST-99"), None)
+    assert edited_asset["asset_name"] == "Test Asset DSLR Camera (Edited)", "Asset name update not saved"
+    print(f"Verified asset details updated: {edited_asset['asset_name']} | Serial: {edited_asset['serial_number']}")
 
     # 5. Submit borrow request for the newly registered user on the new asset
     print("\nStep 5: Submitting borrow request...")
