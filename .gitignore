@@ -1,0 +1,22 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Private configuration files (Contains passwords/keys)
+.env
+backend/credentials.json
+
+# Local logs
+backend/emails_sent.log
+*.log
+
+# macOS system files
+.DS_Store

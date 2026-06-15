@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบยืม-คืนอุปกรณ์และครุภัณฑ์ | สบว. มข.</title>
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <!-- Chart.js CDN for interactive analytics dashboard -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- SSO LOGIN GATE (Full screen - shown if not logged in) -->
+  <div id="sso-login-gate" style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--kku-orange) 0%, var(--charcoal) 100%); padding: 20px; box-sizing: border-box;">
+    <div style="background: white; padding: 40px; border-radius: 16px; width: 100%; max-width: 500px; box-shadow: 0 15px 40px rgba(0,0,0,0.25); text-align: center;">
+      <div class="logo-icon" style="margin: 0 auto 15px auto; width: 60px; height: 60px; font-size: 24px;">OAS</div>
+      <h2 style="font-family: 'Prompt', sans-serif; font-weight: 700; font-size: 22px; color: var(--charcoal); margin-bottom: 8px;">ระบบยืม-คืนครุภัณฑ์ สบว. มข.</h2>
+      <p style="color: #666; font-size: 13px; margin-bottom: 25px;">ลงชื่อเข้าใช้งานด้วยบัญชี KKU Account (SSO)</p>
+      
+      <div style="text-align: left; margin-bottom: 20px;">
+        <label for="sso-email" style="font-family: 'Prompt', sans-serif; font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">เลือกผู้ใช้งานทดสอบ (ตามบัญชีรายชื่อ สบว.)</label>
+        <select id="sso-email-select" class="filter-select" style="width: 100%; margin-bottom: 15px;" onchange="syncSsoInput()">
+          <option value="">-- ป้อนอีเมลเอง หรือ เลือกบัญชีตัวอย่างด้านล่าง --</option>
+          <option value="chukam@kku.ac.th">chukam@kku.ac.th - รศ.น.สพ.ดร.ชูชาติ (ผอ. / Role: User)</option>
+          <option value="wassjo@kku.ac.th">wassjo@kku.ac.th - น.ส.วาสนา (บัญชี / Role: Admin Staff)</option>
+          <option value="praysu@kku.ac.th">praysu@kku.ac.th - นายประหยัด (รักษาการ ผอ.กอง / Role: Head Approver)</option>
+          <option value="cprako@kku.ac.th">cprako@kku.ac.th - นางประครอง (พัสดุ / Role: User)</option>
+          <option value="chalpr@kku.ac.th">chalpr@kku.ac.th - นายชาลี (ไอที / Role: User)</option>
+        </select>
+        
+        <label for="sso-email-input" style="font-family: 'Prompt', sans-serif; font-size: 13px; font-weight: 600; display: block; margin-bottom: 8px;">อีเมลมหาวิทยาลัย (@kku.ac.th)</label>
+        <input type="email" id="sso-email-input" class="form-input" style="width: 100%;" placeholder="username@kku.ac.th" onkeydown="if(event.key==='Enter') executeSsoLogin()">
+      </div>
+      
+      <button class="btn btn-primary" onclick="executeSsoLogin()" style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600;">
+        <i class="fa-solid fa-key"></i> ล็อกอินด้วย KKU Account
+      </button>
+      
+      <p style="margin-top: 15px; font-size: 11px; color: #999;">จำลองการทำงานระบบ Single Sign-On ตามสิทธิ์บุคลากร สบว. มข.</p>
+    </div>
+  </div>
+
+  <!-- APPLICATION INTERFACE (Hidden until logged in) -->
+  <div id="app-content-wrapper" style="display: none; min-height: 100vh; flex-direction: column;">
+    
+    <!-- HEADER / NAVIGATION -->
+    <header>
+      <div class="nav-container">
+        <div class="logo-section">
+          <div class="logo-icon">OAS</div>
+          <div class="logo-text">
+            <h1>ระบบยืม-คืนครุภัณฑ์</h1>
+            <p>สำนักบริการวิชาการ มหาวิทยาลัยขอนแก่น</p>
+          </div>
+        </div>
+        
+        <nav style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <button class="nav-link active" onclick="switchView('browse-view')" id="nav-btn-browse">
+            <i class="fa-solid fa-boxes-stacked"></i> รายการอุปกรณ์
+          </button>
+          <button class="nav-link" onclick="switchView('track-view')" id="nav-btn-track">
+            <i class="fa-solid fa-magnifying-glass"></i> ตรวจสอบสถานะ
+          </button>
+          <button class="nav-link" onclick="switchView('admin-view')" id="nav-btn-admin">
+            <i class="fa-solid fa-user-tie"></i> แผงผู้ดูแลระบบ
+          </button>
+          
+          <!-- User Session Widget -->
+          <div style="background: rgba(0,0,0,0.05); padding: 5px 12px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(0,0,0,0.03);">
+            <i class="fa-solid fa-circle-user" style="color: var(--kku-orange); font-size: 16px;"></i>
+            <span id="session-user-info" style="font-weight: 500;">คุณ ...</span>
+            <button onclick="executeLogout()" style="background: none; border: none; color: #b91c1c; cursor: pointer; font-size: 12px; font-weight: bold; margin-left: 5px; padding: 2px 5px;" title="ออกจากระบบ">
+              <i class="fa-solid fa-right-from-bracket"></i> ออก
+            </button>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <!-- MAIN VIEW CONTAINER -->
+    <main>
+      
+      <!-- 1. BROWSE VIEW (หน้าแรก - รายการอุปกรณ์) -->
+      <section id="browse-view" class="view-section active">
+        <div class="hero-banner">
+          <h2>ยืม-คืนอุปกรณ์และครุภัณฑ์สะดวกและรวดเร็ว</h2>
+          <p>บริการยืมอุปกรณ์คอมพิวเตอร์ โสตทัศนูปกรณ์ และเครื่องมือสนับสนุนสำหรับการทำงานภายใน สบว. มข.</p>
+        </div>
+
+        <!-- Filters & Search -->
+        <div class="filter-bar">
+          <div class="search-input-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="asset-search" placeholder="ค้นหาด้วยชื่ออุปกรณ์ หรือ รหัสครุภัณฑ์..." oninput="filterAssets()">
+          </div>
+          <select id="category-filter" class="filter-select" onchange="filterAssets()">
+            <option value="">ทุกประเภทอุปกรณ์</option>
+            <option value="Notebook">Notebook (โน้ตบุ๊ก)</option>
+            <option value="Projector">Projector (โปรเจกเตอร์)</option>
+            <option value="Tablet">Tablet (แท็บเล็ต)</option>
+            <option value="Camera">Camera (กล้องถ่ายภาพ)</option>
+            <option value="Audio">Audio (ระบบเสียง/ไมโครโฟน)</option>
+          </select>
+        </div>
+
+        <!-- Asset Grid -->
+        <div class="asset-grid" id="asset-grid-container">
+          <div style="text-align: center; grid-column: 1/-1; padding: 40px; color: #888;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 32px; margin-bottom: 10px;"></i>
+            <p>กำลังโหลดรายการครุภัณฑ์...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. TRACK STATUS VIEW (ตรวจสอบสถานะ) -->
+      <section id="track-view" class="view-section">
+        <div class="track-wrapper">
+          <h2 style="font-family: 'Prompt', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 10px;">
+            <i class="fa-solid fa-clock-rotate-left"></i> ตรวจสอบประวัติและสถานะการยืม
+          </h2>
+          <p style="color: #666; font-size: 14px; margin-bottom: 25px;">ตรวจสอบประวัติคำขอและสถานะขั้นตอนการอนุมัติของคุณแบบเรียลไทม์</p>
+          
+          <div class="track-form">
+            <div class="form-group">
+              <label for="track-email">อีเมลมหาวิทยาลัยผู้ขอ</label>
+              <input type="email" id="track-email" class="form-input" placeholder="example@kku.ac.th" readonly>
+            </div>
+            <button class="submit-btn" onclick="trackUserStatus()">
+              <i class="fa-solid fa-search"></i> ค้นหาประวัติ
+            </button>
+          </div>
+
+          <div id="track-results-container" style="display: none;">
+            <h3 style="font-family: 'Prompt', sans-serif; font-size: 15px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 8px;">ประวัติรายการคำขอ</h3>
+            <div id="timeline-container">
+              <!-- Dynamic history elements -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. HEAD APPROVAL PORTAL (หน้าหัวหน้างานอนุมัติ) -->
+      <section id="head-approval-view" class="view-section">
+        <div class="approval-panel" id="head-approval-panel">
+          <div style="text-align: center; padding: 40px; color: #888;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 32px; margin-bottom: 10px;"></i>
+            <p>กำลังโหลดรายละเอียดคำขอยืมสำหรับผู้อนุมัติ...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. ADMIN VIEW & DASHBOARD (สำหรับเจ้าหน้าที่) -->
+      <section id="admin-view" class="view-section">
+        <!-- Dashboard Panel -->
+        <div id="admin-dashboard-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="font-family: 'Prompt', sans-serif; font-size: 22px; font-weight: 700; color: var(--charcoal);">
+              <i class="fa-solid fa-chalkboard-user"></i> แผงควบคุมและจัดการผู้ดูแลระบบ (ฝ่ายพัสดุ)
+            </h2>
+          </div>
+
+          <!-- Admin Tabs -->
+          <div class="admin-tabs">
+            <button class="admin-tab-btn active" onclick="switchAdminTab('tab-summary')" id="admin-tab-summary-btn">สรุปรายงาน (KPI/Charts)</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('tab-pending')" id="admin-tab-pending-btn">คำขอรอพัสดุตรวจสอบ (<span id="badge-pending-admin">0</span>)</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('tab-loans')" id="admin-tab-loans-btn">รายการกำลังถูกยืม (<span id="badge-active-loans">0</span>)</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('tab-logs')" id="admin-tab-logs-btn">ประวัติบันทึกทั้งหมด</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('tab-manage-assets')" id="admin-tab-manage-assets-btn" style="display: none;">จัดการครุภัณฑ์ (เพิ่ม/ลบ)</button>
+            <button class="admin-tab-btn" onclick="switchAdminTab('tab-manage-users')" id="admin-tab-manage-users-btn" style="display: none;">จัดการผู้ใช้งาน (เพิ่ม/ลบ)</button>
+          </div>
+
+          <!-- Tab 1: Summary Stats -->
+          <div id="tab-summary" class="admin-tab-content active">
+            <!-- KPI Cards -->
+            <div class="kpi-container">
+              <div class="kpi-card total">
+                <span class="kpi-title"><i class="fa-solid fa-boxes-stacked"></i> จำนวนครุภัณฑ์ทั้งหมด</span>
+                <span class="kpi-value" id="kpi-total-assets">0</span>
+              </div>
+              <div class="kpi-card pending-admin">
+                <span class="kpi-title"><i class="fa-solid fa-user-shield"></i> รอพัสดุตรวจสอบ</span>
+                <span class="kpi-value" id="kpi-pending-admin">0</span>
+              </div>
+              <div class="kpi-card pending-head">
+                <span class="kpi-title"><i class="fa-solid fa-user-check"></i> รอหัวหน้างานอนุมัติ</span>
+                <span class="kpi-value" id="kpi-pending-head">0</span>
+              </div>
+              <div class="kpi-card active-loans">
+                <span class="kpi-title"><i class="fa-solid fa-hand-holding-hand"></i> กำลังถูกยืมอยู่</span>
+                <span class="kpi-value" id="kpi-active-loans">0</span>
+              </div>
+              <div class="kpi-card overdue">
+                <span class="kpi-title"><i class="fa-solid fa-circle-exclamation"></i> คืนอุปกรณ์เกินกำหนด</span>
+                <span class="kpi-value" id="kpi-overdue">0</span>
+              </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+              <div class="chart-card">
+                <h3>สัดส่วนจำนวนอุปกรณ์ตามประเภท (Asset Categorization)</h3>
+                <div class="chart-wrapper">
+                  <canvas id="categoryDonutChart"></canvas>
+                </div>
+              </div>
+              <div class="chart-card">
+                <h3>สถิติหน่วยงานที่ทำธุรกรรมยืมสูงสุด (Top Departments)</h3>
+                <div class="chart-wrapper">
+                  <canvas id="deptBarChart"></canvas>
+                </div>
+              </div>
+              <div class="chart-card" style="grid-column: 1/-1;">
+                <h3>แนวโน้มความถี่การยืมอุปกรณ์รายเดือน (Monthly Borrowing Trends)</h3>
+                <div class="chart-wrapper">
+                  <canvas id="monthlyTrendChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Pending Admin (Screening) -->
+          <div id="tab-pending" class="admin-tab-content">
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>รหัสธุรกรรม</th>
+                    <th>รหัส/ชื่อครุภัณฑ์</th>
+                    <th>ผู้ขอยืม / ฝ่าย</th>
+                    <th>ผู้อนุมัติ (หัวหน้าฝ่าย)</th>
+                    <th>กำหนดวันยืม - วันคืน</th>
+                    <th>วัตถุประสงค์</th>
+                    <th style="text-align: center; width: 220px;">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="table-pending-body">
+                  <tr>
+                    <td colspan="7" style="text-align: center; color: #888; padding: 25px;">ไม่มีรายการรอตรวจสอบในขณะนี้</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab 3: Active Loans (Return Management) -->
+          <div id="tab-loans" class="admin-tab-content">
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>รหัสธุรกรรม</th>
+                    <th>รหัส/ชื่อครุภัณฑ์</th>
+                    <th>ผู้ขอยืม / ฝ่าย</th>
+                    <th>วันที่เริ่มยืม</th>
+                    <th>กำหนดวันส่งคืน</th>
+                    <th>สถานะ</th>
+                    <th style="text-align: center; width: 150px;">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="table-loans-body">
+                  <tr>
+                    <td colspan="7" style="text-align: center; color: #888; padding: 25px;">ไม่มีอุปกรณ์ถูกยืมอยู่ในขณะนี้</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab 4: All Logs (Exportable Log View) -->
+          <div id="tab-logs" class="admin-tab-content">
+            <div class="table-actions">
+              <div class="search-input-wrapper" style="max-width: 400px; flex: 1;">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="log-search" placeholder="ค้นหาด้วยรหัสยืม, ชื่อผู้ขอยืม, หรือครุภัณฑ์..." oninput="filterLogs()">
+              </div>
+              <div style="display: flex; gap: 10px;">
+                <select id="log-status-filter" class="filter-select" style="min-width: 150px;" onchange="filterLogs()">
+                  <option value="">ทุกสถานะ</option>
+                  <option value="Pending Admin">รอพัสดุตรวจสอบ</option>
+                  <option value="Pending Head">รอหัวหน้าอนุมัติ</option>
+                  <option value="Approved">อนุมัติแล้ว/กำลังยืม</option>
+                  <option value="Rejected">ไม่อนุมัติ</option>
+                  <option value="Returned">คืนอุปกรณ์แล้ว</option>
+                </select>
+                <button class="btn btn-primary" onclick="exportLogsToCSV()" style="display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-file-export"></i> ดาวน์โหลดข้อมูล (CSV)
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>รหัสธุรกรรม</th>
+                    <th>รหัส/ชื่ออุปกรณ์</th>
+                    <th>ผู้ขอยืม</th>
+                    <th>ฝ่าย</th>
+                    <th>วันยืม - วันคืน</th>
+                    <th>วันส่งคืนจริง</th>
+                    <th>สถานะ</th>
+                    <th>เหตุผลการปฏิเสธ</th>
+                  </tr>
+                </thead>
+                <tbody id="table-logs-body">
+                  <tr>
+                    <td colspan="8" style="text-align: center; color: #888; padding: 25px;">ไม่มีบันทึกการยืมครุภัณฑ์ในขณะนี้</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tab 5: Manage Assets (Add/Delete Assets) -->
+          <div id="tab-manage-assets" class="admin-tab-content">
+            <div class="charts-grid" style="grid-template-columns: 350px 1fr; margin-bottom: 0;">
+              
+              <!-- Form: Add Asset -->
+              <div class="chart-card" style="align-items: stretch; height: fit-content;">
+                <h3><i class="fa-solid fa-plus-circle" style="color: var(--kku-orange);"></i> ลงทะเบียนครุภัณฑ์ใหม่</h3>
+                <form id="add-asset-form" onsubmit="executeAddAsset(event)" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+                  <div class="form-group">
+                    <label for="new-asset-id">รหัสครุภัณฑ์ <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-asset-id" class="form-input" placeholder="เช่น OAS-NOTE-011" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-asset-name">ชื่อครุภัณฑ์และรุ่น <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-asset-name" class="form-input" placeholder="เช่น iPad Pro 12.9 M4" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-asset-category">ประเภทอุปกรณ์ <span style="color:var(--danger)">*</span></label>
+                    <select id="new-asset-category" class="filter-select" style="min-width: 100%" required>
+                      <option value="">เลือกประเภท</option>
+                      <option value="Notebook">Notebook (โน้ตบุ๊ก)</option>
+                      <option value="Projector">Projector (โปรเจกเตอร์)</option>
+                      <option value="Tablet">Tablet (แท็บเล็ต)</option>
+                      <option value="Camera">Camera (กล้องถ่ายภาพ)</option>
+                      <option value="Audio">Audio (ระบบเสียง/ไมโครโฟน)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-asset-serial">Serial Number <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-asset-serial" class="form-input" placeholder="ซีเรียลนัมเบอร์ของอุปกรณ์" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-asset-img">รูปภาพครุภัณฑ์ (URL)</label>
+                    <select id="new-asset-img-template" class="filter-select" style="min-width: 100%" onchange="syncNewAssetImage()">
+                      <option value="">-- เลือกภาพตัวอย่าง หรือ ป้อน URL เอง --</option>
+                      <option value="assets/macbook_pro.png">รูป Laptop (โน้ตบุ๊ก)</option>
+                      <option value="assets/ipad_pro.png">รูป iPad / Tablet</option>
+                      <option value="assets/sony_camera.png">รูป กล้อง DSLR</option>
+                      <option value="assets/epson_projector.png">รูป โปรเจกเตอร์</option>
+                    </select>
+                    <input type="text" id="new-asset-img-input" class="form-input" placeholder="https://..." style="margin-top: 5px;">
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                    <i class="fa-solid fa-save"></i> บันทึกครุภัณฑ์
+                  </button>
+                </form>
+              </div>
+
+              <!-- List: All Assets for deletion -->
+              <div class="chart-card" style="align-items: stretch;">
+                <h3><i class="fa-solid fa-clipboard-list"></i> ทะเบียนรายการครุภัณฑ์ทั้งหมด (<span id="manage-assets-count">0</span>)</h3>
+                <div class="table-responsive" style="margin-top: 10px; max-height: 480px; overflow-y: auto;">
+                  <table class="custom-table" style="font-size: 13px;">
+                    <thead>
+                      <tr>
+                        <th>รูปภาพ</th>
+                        <th>รหัสครุภัณฑ์</th>
+                        <th>ชื่ออุปกรณ์ / ประเภท</th>
+                        <th>Serial Number</th>
+                        <th>สถานะ</th>
+                        <th style="text-align: center; width: 100px;">การจัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-manage-assets-body">
+                      <!-- Rendered dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Tab 6: Manage Users (Add/Delete Users) -->
+          <div id="tab-manage-users" class="admin-tab-content">
+            <div class="charts-grid" style="grid-template-columns: 350px 1fr; margin-bottom: 0;">
+              
+              <!-- Form: Add User -->
+              <div class="chart-card" style="align-items: stretch; height: fit-content;">
+                <h3><i class="fa-solid fa-user-plus" style="color: var(--kku-orange);"></i> เพิ่มผู้ใช้งานระบบใหม่</h3>
+                <form id="add-user-form" onsubmit="executeAddUser(event)" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+                  <div class="form-group">
+                    <label for="new-user-email">อีเมลมหาวิทยาลัย (@kku.ac.th) <span style="color:var(--danger)">*</span></label>
+                    <input type="email" id="new-user-email" class="form-input" placeholder="username@kku.ac.th" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-name">ชื่อ-นามสกุล <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-user-name" class="form-input" placeholder="เช่น นายประหยัด สินเมืองซ้าย" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-title">ตำแหน่งสายงาน</label>
+                    <input type="text" id="new-user-title" class="form-input" placeholder="เช่น นักวิชาการพัสดุชำนาญการ">
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-admin-title">ตำแหน่งบริหาร (ถ้ามี)</label>
+                    <input type="text" id="new-user-admin-title" class="form-input" placeholder="เช่น หัวหน้าภารกิจ">
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-division">สังกัด/กอง <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-user-division" class="form-input" placeholder="เช่น กองบริหารงานสำนักบริการวิชาการ" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-department">ฝ่าย/ภารกิจ <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="new-user-department" class="form-input" placeholder="เช่น ภารกิจแผน การเงิน และพัสดุ" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="new-user-status">สิทธิ์การใช้งานระบบ <span style="color:var(--danger)">*</span></label>
+                    <select id="new-user-status" class="filter-select" style="min-width: 100%" required>
+                      <option value="">เลือกสิทธิ์การใช้งาน</option>
+                      <option value="user">user (บุคลากรทั่วไป)</option>
+                      <option value="admin/ staff">admin/ staff (เจ้าหน้าที่พัสดุ)</option>
+                      <option value="admin / Approve">admin / Approve (หัวหน้างานอนุมัติ)</option>
+                    </select>
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+                    <i class="fa-solid fa-user-check"></i> บันทึกข้อมูลผู้ใช้
+                  </button>
+                </form>
+              </div>
+
+              <!-- List: All Users for deletion -->
+              <div class="chart-card" style="align-items: stretch;">
+                <h3><i class="fa-solid fa-users-gear"></i> รายชื่อผู้ใช้งานระบบทั้งหมด (<span id="manage-users-count">0</span>)</h3>
+                <div class="table-actions" style="margin-bottom: 15px;">
+                  <div class="search-input-wrapper" style="max-width: 400px; flex: 1;">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="user-search" placeholder="ค้นหาด้วยชื่อผู้ใช้, อีเมล, หรือตำแหน่ง..." oninput="filterUsersList()">
+                  </div>
+                </div>
+                
+                <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                  <table class="custom-table" style="font-size: 13px;">
+                    <thead>
+                      <tr>
+                        <th>ชื่อ-นามสกุล</th>
+                        <th>อีเมล</th>
+                        <th>ตำแหน่ง / สังกัด</th>
+                        <th>สิทธิ์การใช้งาน</th>
+                        <th style="text-align: center; width: 100px;">การจัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody id="table-manage-users-body">
+                      <!-- Rendered dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- --- MODAL DIALOGS --- -->
+
+    <!-- Modal 1: Borrow Request Form Modal -->
+    <div class="modal-backdrop" id="borrow-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-file-signature" style="color: var(--kku-orange);"></i> ยื่นคำขอเช่ายืมครุภัณฑ์</h3>
+          <button class="modal-close-btn" onclick="closeModal('borrow-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="borrow-request-form" onsubmit="submitBorrowRequest(event)">
+            <input type="hidden" id="form-asset-id">
+            
+            <div style="background-color: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+              <div style="width: 50px; height: 50px; border-radius: 6px; overflow: hidden; background: #eee;">
+                <img id="form-asset-img" src="" alt="" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <div>
+                <p style="font-size: 11px; color: var(--kku-orange); font-family: 'Prompt', sans-serif; font-weight: 600;" id="form-asset-cat"></p>
+                <h4 style="font-family: 'Prompt', sans-serif; font-size: 14px; font-weight: 600;" id="form-asset-name"></h4>
+                <p style="font-size: 12px; color: #666;">รหัสครุภัณฑ์: <span id="form-asset-id-text"></span> | Serial: <span id="form-asset-serial"></span></p>
+              </div>
+            </div>
+
+            <!-- Profile Info: Prefilled and readonly from SSO Session -->
+            <div class="form-grid" style="margin-bottom: 15px;">
+              <div class="form-group">
+                <label for="form-borrower-name">ชื่อ-นามสกุล ผู้ขอเช่า</label>
+                <input type="text" id="form-borrower-name" class="form-input" style="background-color: #f3f4f6; color: #555;" readonly>
+              </div>
+              <div class="form-group">
+                <label for="form-borrower-email">อีเมลมหาวิทยาลัย (@kku.ac.th)</label>
+                <input type="email" id="form-borrower-email" class="form-input" style="background-color: #f3f4f6; color: #555;" readonly>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="form-department">หน่วยงาน/ฝ่ายที่สังกัด</label>
+              <input type="text" id="form-department" class="form-input" style="background-color: #f3f4f6; color: #555;" readonly>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="form-head-email">อีเมลของหัวหน้าฝ่าย/ผู้อนุมัติขั้นที่ 2 (@kku.ac.th) <span style="color: var(--danger);">*</span></label>
+              <select id="form-head-email-select" class="filter-select" style="min-width: 100%;" required>
+                <!-- Prepopulated with praysu@kku.ac.th as default head, or custom -->
+                <option value="praysu@kku.ac.th">praysu@kku.ac.th - นายประหยัด สินเมืองซ้าย (รักษาการ ผอ.กอง)</option>
+              </select>
+            </div>
+
+            <div class="form-grid" style="margin-bottom: 15px;">
+              <div class="form-group">
+                <label for="form-borrow-date">วันที่เริ่มยืม <span style="color: var(--danger);">*</span></label>
+                <input type="date" id="form-borrow-date" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label for="form-return-date">กำหนดวันคืน <span style="color: var(--danger);">*</span></label>
+                <input type="date" id="form-return-date" class="form-input" required>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 5px;">
+              <label for="form-purpose">วัตถุประสงค์การใช้งานอุปกรณ์ <span style="color: var(--danger);">*</span></label>
+              <textarea id="form-purpose" class="form-input" style="min-height: 80px; resize: vertical;" placeholder="ระบุเหตุผลความจำเป็นและสถานที่ใช้งานอุปกรณ์..." required></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('borrow-modal')">ยกเลิก</button>
+          <button type="submit" form="borrow-request-form" class="btn btn-primary">
+            <i class="fa-solid fa-paper-plane"></i> ส่งคำขอยืม
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 2: Rejection Reason Modal (Shared by Admin and Head) -->
+    <div class="modal-backdrop" id="reject-modal">
+      <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-ban" style="color: var(--danger);"></i> ระบุเหตุผลการปฏิเสธ</h3>
+          <button class="modal-close-btn" onclick="closeModal('reject-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="reject-tx-id">
+          <input type="hidden" id="reject-source-role"> <!-- 'admin' or 'head' -->
+          
+          <div class="form-group">
+            <label for="form-reject-reason">เหตุผลการปฏิเสธคำขอยืม <span style="color: var(--danger);">*</span></label>
+            <textarea id="form-reject-reason" class="form-input" style="min-height: 100px; resize: vertical;" placeholder="เช่น อุปกรณ์ไม่พร้อมใช้งานในเวลาดังกล่าว หรือข้อมูลไม่ครบถ้วน..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('reject-modal')">ยกเลิก</button>
+          <button type="button" class="btn btn-danger" onclick="submitRejection()">
+            <i class="fa-solid fa-circle-xmark"></i> ยืนยันไม่อนุมัติ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dynamic Toast Alert System -->
+    <div class="toast" id="toast-notification">
+      <i class="fa-solid fa-circle-info" id="toast-icon"></i>
+      <span id="toast-message">การแจ้งเตือนจากระบบ</span>
+    </div>
+
+    <!-- FOOTER -->
+    <footer style="margin-top: auto;">
+      <p>&copy; 2026 Office of Academic Service, Khon Kaen University (OAS KKU). All Rights Reserved.</p>
+      <p style="margin-top: 5px; font-size: 11px; opacity: 0.5;">สำนักบริการวิชาการ มหาวิทยาลัยขอนแก่น | ระบบงานพัสดุและจัดหา</p>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

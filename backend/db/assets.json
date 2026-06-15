@@ -1,0 +1,258 @@
+[
+  {
+    "asset_id": "6620070000009",
+    "asset_name": "กล้อง Sony Mirrorless (DSLR)",
+    "category": "Camera",
+    "serial_number": "6620070000009",
+    "status": "Available",
+    "image_url": "assets/sony_camera.png"
+  },
+  {
+    "asset_id": "662007000010",
+    "asset_name": "กล้อง Sony Mirrorless (DSLR) เครื่องที่ 2",
+    "category": "Camera",
+    "serial_number": "662007000010",
+    "status": "Available",
+    "image_url": "assets/sony_camera.png"
+  },
+  {
+    "asset_id": "6520070000016",
+    "asset_name": "โดรน DJI (Drone)",
+    "category": "Camera",
+    "serial_number": "6520070000016",
+    "status": "Available",
+    "image_url": "assets/sony_camera.png"
+  },
+  {
+    "asset_id": "672013000001",
+    "asset_name": "Notebook HP Victus (Gaming)",
+    "category": "Notebook",
+    "serial_number": "672013000001",
+    "status": "Available",
+    "image_url": "assets/macbook_pro.png"
+  },
+  {
+    "asset_id": "672013000002",
+    "asset_name": "Notebook HP Victus (Gaming) เครื่องที่ 2",
+    "category": "Notebook",
+    "serial_number": "672013000002",
+    "status": "Available",
+    "image_url": "assets/macbook_pro.png"
+  },
+  {
+    "asset_id": "662013000001",
+    "asset_name": "Notebook ACER Aspire 3",
+    "category": "Notebook",
+    "serial_number": "662013000001",
+    "status": "Available",
+    "image_url": "assets/dell_laptop.png"
+  },
+  {
+    "asset_id": "662013000002",
+    "asset_name": "Notebook ACER Aspire 4",
+    "category": "Notebook",
+    "serial_number": "662013000002",
+    "status": "Available",
+    "image_url": "assets/dell_laptop.png"
+  },
+  {
+    "asset_id": "652013000007",
+    "asset_name": "Notebook ACER Standard",
+    "category": "Notebook",
+    "serial_number": "652013000007",
+    "status": "Available",
+    "image_url": "assets/dell_laptop.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-ROLL-01",
+    "asset_name": "ปลั๊กไฟ แบบม้วนขนาดใหญ่ (ม้วนที่ 1)",
+    "category": "Audio",
+    "serial_number": "ROLL-PLUG-01",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-ROLL-02",
+    "asset_name": "ปลั๊กไฟ แบบม้วนขนาดใหญ่ (ม้วนที่ 2)",
+    "category": "Audio",
+    "serial_number": "ROLL-PLUG-02",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-ROLL-03",
+    "asset_name": "ปลั๊กไฟ แบบม้วนขนาดใหญ่ (ม้วนที่ 3)",
+    "category": "Audio",
+    "serial_number": "ROLL-PLUG-03",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-01",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 1)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-01",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-02",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 2)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-02",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-03",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 3)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-03",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-04",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 4)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-04",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-05",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 5)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-05",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-06",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 6)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-06",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-07",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 7)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-07",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-08",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 8)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-08",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-09",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 9)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-09",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-10",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 10)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-10",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-11",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 11)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-11",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-12",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 12)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-12",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-13",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 13)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-13",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-14",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 14)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-14",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PLUG-STRIP-15",
+    "asset_name": "ปลั๊กไฟ รางขนาดเล็ก (รางที่ 15)",
+    "category": "Audio",
+    "serial_number": "STRIP-PLUG-15",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-MIC-BOYA-01",
+    "asset_name": "ไมค์ลอย BOYA",
+    "category": "Audio",
+    "serial_number": "MIC-BY-01",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-MIC-SARA-01",
+    "asset_name": "ไมค์ลอย Saramonic",
+    "category": "Audio",
+    "serial_number": "MIC-SR-01",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-MIC-BIK-01",
+    "asset_name": "ไมค์เคลื่อนที่ BIK (ตัวที่ 1)",
+    "category": "Audio",
+    "serial_number": "MIC-BIK-01",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-MIC-BIK-02",
+    "asset_name": "ไมค์เคลื่อนที่ BIK (ตัวที่ 2)",
+    "category": "Audio",
+    "serial_number": "MIC-BIK-02",
+    "status": "Available",
+    "image_url": "assets/rode_mic.png"
+  },
+  {
+    "asset_id": "OAS-PTR-LOGI-01",
+    "asset_name": "Pointer Logitech สำหรับนำเสนอ (ตัวที่ 1)",
+    "category": "Projector",
+    "serial_number": "PTR-LOGI-01",
+    "status": "Available",
+    "image_url": "assets/epson_projector.png"
+  },
+  {
+    "asset_id": "OAS-PTR-LOGI-02",
+    "asset_name": "Pointer Logitech สำหรับนำเสนอ (ตัวที่ 2)",
+    "category": "Projector",
+    "serial_number": "PTR-LOGI-02",
+    "status": "Available",
+    "image_url": "assets/epson_projector.png"
+  }
+]
