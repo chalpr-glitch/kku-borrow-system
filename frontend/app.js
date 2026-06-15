@@ -1424,6 +1424,71 @@ async function executeDeleteUser(email) {
   }
 }
 
+// Open Edit User Modal and Prefill details
+function openEditUserModal(email) {
+  const user = allUsers.find(u => u.email === email);
+  if (!user) {
+    showToast('ไม่พบข้อมูลผู้ใช้งานดังกล่าว', 'error');
+    return;
+  }
+  
+  document.getElementById('edit-user-email').value = user.email;
+  document.getElementById('edit-user-name').value = user.name;
+  document.getElementById('edit-user-title').value = user.title || '';
+  document.getElementById('edit-user-admin-title').value = user.admin_title || '';
+  document.getElementById('edit-user-division').value = user.division || '';
+  document.getElementById('edit-user-department').value = user.department || '';
+  document.getElementById('edit-user-status').value = user.status || 'user';
+  
+  openModal('edit-user-modal');
+}
+
+// API Call: Update User details
+async function executeEditUser(event) {
+  event.preventDefault();
+  
+  const email = document.getElementById('edit-user-email').value;
+  const name = document.getElementById('edit-user-name').value.trim();
+  const title = document.getElementById('edit-user-title').value.trim();
+  const adminTitle = document.getElementById('edit-user-admin-title').value.trim();
+  const division = document.getElementById('edit-user-division').value.trim();
+  const department = document.getElementById('edit-user-department').value.trim();
+  const status = document.getElementById('edit-user-status').value;
+  
+  const payload = {
+    name,
+    title,
+    admin_title: adminTitle,
+    division,
+    department,
+    status
+  };
+  
+  try {
+    const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(email)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'เกิดข้อผิดพลาดในการบันทึกการแก้ไข');
+    
+    showToast('แก้ไขข้อมูลผู้ใช้งานสำเร็จแล้ว!', 'success');
+    closeModal('edit-user-modal');
+    
+    // Refresh lists
+    await fetchUsersList();
+    renderManageUsersTable();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+
 function filterUsersList() {
   const searchQuery = document.getElementById('user-search').value.toLowerCase().trim();
 
@@ -1452,7 +1517,10 @@ function filterUsersList() {
           <div style="font-size:10px; color:#888;">${u.department}</div>
         </td>
         <td><span class="status-label ${u.status === 'admin/ staff' ? 'approved' : u.status === 'admin / Approve' ? 'pending-head' : 'returned'}" style="padding: 2px 6px; font-size:11px;">${getRoleLabel(u.status)}</span></td>
-        <td style="text-align: center;">
+        <td style="text-align: center; white-space: nowrap;">
+          <button class="btn btn-warning" style="padding: 4px 8px; font-size: 11px; margin-right: 5px;" onclick="openEditUserModal('${u.email}')">
+            <i class="fa-solid fa-pen-to-square"></i> แก้ไข
+          </button>
           <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="executeDeleteUser('${u.email}')" ${isSelf ? 'disabled' : ''}>
             <i class="fa-solid fa-trash-can"></i> ลบ
           </button>
