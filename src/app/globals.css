@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Prompt", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Prompt", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Prompt", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-print: "Sarabun", "TH Sarabun New", "TH Sarabun PSK", serif;
+  
+  /* Primary: Deep Forest Green & Emerald Accent */
+  --color-brand-50: #f0fdf4;
+  --color-brand-100: #dcfce7;
+  --color-brand-200: #bbf7d0;
+  --color-brand-300: #86efac;
+  --color-brand-400: #4ade80;
+  --color-brand-500: #22c55e;
+  --color-brand-600: #16a34a;
+  --color-brand-700: #15803d;
+  --color-brand-800: #155e53; /* Deep Forest Green (Figma Accent) */
+  --color-brand-900: #14322c;
+  --color-brand-950: #0a1a17;
+
+  /* Deep Corporate Slate & Charcoal/Obsidian Accent */
+  --color-navy-50: #f8fafc;
+  --color-navy-100: #f1f5f9;
+  --color-navy-200: #e2e8f0;
+  --color-navy-500: #64748b;
+  --color-navy-700: #334155;
+  --color-navy-800: #1e293b;
+  --color-navy-900: #0f172a; /* Obsidian Black (Figma Primary CTA) */
+
+  /* CTA: High-Contrast Dark Obsidian */
+  --color-cta-50: #f8fafc;
+  --color-cta-100: #f1f5f9;
+  --color-cta-500: #334155;
+  --color-cta-600: #1e293b;
+  --color-cta-700: #0f172a;
+
+  /* State Colors */
+  --color-success-500: #155e53;
+  --color-success-600: #0f4c3a;
+  --color-warning-500: #d97706;
+  --color-warning-600: #b45309;
+  --color-error-500: #e11d48;
+  --color-error-600: #be123c;
+
+  /* App Background & Base Text (Figma E-commerce Off-White) */
+  --color-app-bg: #f8fafc;
+  --color-app-surface: #ffffff;
+  --color-app-text: #0f172a;
+}
+
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  font-family: var(--font-sans);
+  background-color: var(--color-app-bg);
+  color: var(--color-app-text);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body, input, button, select, textarea, optgroup {
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+@layer components {
+  /* Figma E-commerce Product Card (Border Radius 12-16px, Padding 12px) */
+  .card {
+    @apply rounded-2xl border border-slate-200/70 bg-white p-3 md:p-4 shadow-xs transition-all duration-200;
+  }
+  
+  .card-hover {
+    @apply rounded-2xl border border-slate-200/70 bg-white p-3 md:p-4 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md;
+  }
+
+  /* Base Button with 48px Height & 12-16px Border Radius */
+  .btn {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/30 focus-visible:ring-offset-2;
+    font-family: var(--font-heading);
+  }
+
+  /* Primary Button (Figma Dark Obsidian #0F172A) */
+  .btn-primary {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-slate-900 text-white shadow-xs hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2;
+    font-family: var(--font-heading);
+  }
+
+  /* CTA Button (Figma ShopEase Add to Cart Style: Obsidian with Crisp Finish) */
+  .btn-cta {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-slate-900 text-white shadow-sm hover:bg-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900/40 focus-visible:ring-offset-2;
+    font-family: var(--font-heading);
+  }
+
+  /* Secondary Button (Slate Surface) */
+  .btn-secondary {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-slate-100 text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2;
+    font-family: var(--font-heading);
+  }
+
+  /* Success Button (Deep Forest Green #155E53) */
+  .btn-success {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-[#155E53] text-white shadow-xs hover:bg-[#0F4C3A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#155E53]/40 focus-visible:ring-offset-2;
+    font-family: var(--font-heading);
+  }
+
+  /* Danger Button (Rose Red) */
+  .btn-danger {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 bg-rose-600 text-white shadow-xs hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40 focus-visible:ring-offset-2;
+    font-family: var(--font-heading);
+  }
+
+  /* Outline Button */
+  .btn-outline {
+    @apply inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100 border border-slate-200 bg-white text-slate-800 shadow-2xs hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2;
+    font-family: var(--font-heading);
+  }
+
+  /* Form Inputs (48px Height, 12-16px Radius, 14px Text) */
+  .input {
+    @apply w-full min-h-[48px] rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-800 focus:ring-2 focus:ring-slate-900/10 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed;
+    font-family: var(--font-sans);
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-semibold tracking-wide text-slate-700;
+    font-family: var(--font-sans);
+  }
+
+  /* Accessible Table Elements */
+  .th {
+    @apply px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-50 first:rounded-tl-xl last:rounded-tr-xl border-b border-slate-200;
+    font-family: var(--font-sans);
+  }
+
+  .td {
+    @apply px-4 py-3 text-sm text-slate-800;
+    font-family: var(--font-sans);
+  }
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+  }
+  .card {
+    box-shadow: none !important;
+    break-inside: avoid;
+    border-color: #cbd5e1 !important;
+  }
+}

@@ -1,0 +1,713 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ============================================================
+       Helper Security Functions
+       ============================================================ */
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function isKKUUser() {
+      return isAuthenticated() && 
+        (request.auth.token.email.matches('.*@kku[.]ac[.]th$') || request.auth.token.email.matches('.*@.*[.]kku[.]ac[.]th$'));
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data;
+    }
+
+    function isUserActive() {
+      return isKKUUser() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) &&
+        userDoc().active == true;
+    }
+
+    function isStaff() {
+      return isUserActive() && (userDoc().role in ['CUSTODIAN', 'APPROVER', 'EXECUTIVE']);
+    }
+
+    function isCustodian() {
+      return isUserActive() && (userDoc().role in ['CUSTODIAN', 'EXECUTIVE']);
+    }
+
+    function isApprover() {
+      return isUserActive() && (userDoc().role in ['APPROVER', 'EXECUTIVE']);
+    }
+
+    function isCustodianOrAdmin() {
+      return isCustodian();
+    }
+
+    /* Date Validation & Duration Calculation Helpers */
+
+    function isValidDateFormat(s) {
+      return s is string && s.size() == 10 &&
+        s[4] == '-' && s[7] == '-' &&
+        s >= '2024-01-01' && s <= '2099-12-31';
+    }
+
+    function parseDate(s) {
+      return timestamp.date(int(s[0:4]), int(s[5:7]), int(s[8:10]));
+    }
+
+    function matchesDurationDays(startStr, endStr, days) {
+      return parseDate(endStr) - parseDate(startStr) == duration.value(days - 1, 'd');
+    }
+
+    function isDurationWithinMax(startStr, endStr, maxDays) {
+      return parseDate(endStr) - parseDate(startStr) <= duration.value(maxDays - 1, 'd') &&
+             parseDate(endStr) - parseDate(startStr) >= duration.value(0, 'd');
+    }
+
+    /* Strict Field Preservation Helper for Nested Maps */
+    function preserveField(prevMap, nextMap, fieldName) {
+      return !(fieldName in prevMap) || (fieldName in nextMap && nextMap[fieldName] == prevMap[fieldName]);
+    }
+
+    function preserveExtensionRequestFields(prevExt, nextExt) {
+      return preserveField(prevExt, nextExt, 'requestedAt') &&
+             preserveField(prevExt, nextExt, 'requestedBy') &&
+             preserveField(prevExt, nextExt, 'reason') &&
+             preserveField(prevExt, nextExt, 'newExpectedReturnDate') &&
+             preserveField(prevExt, nextExt, 'addedDays') &&
+             preserveField(prevExt, nextExt, 'currentExpectedReturnDate') &&
+             preserveField(prevExt, nextExt, 'isOverdueExtension');
+    }
+
+    /* Date Conflict & Booking Overlap Verification Helpers */
+    function bookingNoConflict(b, start, end) {
+      return b.expectedReturnDate < start || b.startDate > end;
+    }
+
+    function isBookingFree(eqId, start, end) {
+      let eqPath = /databases/$(database)/documents/equipments/$(eqId);
+      let list = (exists(eqPath) && 'activeBookings' in get(eqPath).data && get(eqPath).data.activeBookings is list)
+        ? get(eqPath).data.activeBookings : [];
+      let sz = list.size();
+      return sz == 0 || (
+        bookingNoConflict(list[0], start, end) && (
+          sz == 1 || (
+            bookingNoConflict(list[1], start, end) && (
+              sz == 2 || (
+                bookingNoConflict(list[2], start, end) && (
+                  sz == 3 || bookingNoConflict(list[3], start, end)
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    function extNoConflict(b, reqId, start, newEnd) {
+      return b.requestId == reqId || bookingNoConflict(b, start, newEnd);
+    }
+
+    function isExtBookingFree(eqId, reqId, start, newEnd) {
+      let eqPath = /databases/$(database)/documents/equipments/$(eqId);
+      let list = (exists(eqPath) && 'activeBookings' in get(eqPath).data && get(eqPath).data.activeBookings is list)
+        ? get(eqPath).data.activeBookings : [];
+      let sz = list.size();
+      return sz == 0 || (
+        extNoConflict(list[0], reqId, start, newEnd) && (
+          sz == 1 || (
+            extNoConflict(list[1], reqId, start, newEnd) && (
+              sz == 2 || (
+                extNoConflict(list[2], reqId, start, newEnd) && (
+                  sz == 3 || extNoConflict(list[3], reqId, start, newEnd)
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    /* Equipment OCC Lock Helper */
+    function isLockUpdated(eqId) {
+      let eqPath = /databases/$(database)/documents/equipments/$(eqId);
+      return existsAfter(eqPath) &&
+        'lastBookingUpdatedAt' in getAfter(eqPath).data &&
+        (!exists(eqPath) ||
+         !('lastBookingUpdatedAt' in get(eqPath).data) ||
+         getAfter(eqPath).data.lastBookingUpdatedAt != get(eqPath).data.lastBookingUpdatedAt);
+    }
+
+    /* Strict Equipment Availability Helper (Layer 4 Defense) */
+    function isEquipmentAvailableForBorrow(eqId) {
+      let eqPath = /databases/$(database)/documents/equipments/$(eqId);
+      return exists(eqPath) &&
+        get(eqPath).data.status == 'AVAILABLE' &&
+        (!('isDeleted' in get(eqPath).data) || get(eqPath).data.isDeleted == false);
+    }
+
+    /* Workflow Transition Logic */
+
+    function isStatusChangeValid(reqId) {
+      let nextStatus = request.resource.data.status;
+      let currStatus = resource.data.status;
+      let diffKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let userEmail = request.auth.token.email.lower();
+      let bookingPath = /databases/$(database)/documents/equipment_bookings/$(reqId);
+
+      return nextStatus == 'CANCELLED' ? (
+        currStatus in ['PENDING_REVIEW', 'PENDING_APPROVAL', 'APPROVED_WAITING_PICKUP'] &&
+        (userEmail == resource.data.borrower.email.lower() || isCustodian()) &&
+        getAfter(bookingPath).data.status == 'CANCELLED' &&
+        diffKeys.hasOnly(['status', 'cancel', 'timeline', 'updatedAt'])
+      ) : nextStatus in ['PENDING_APPROVAL', 'REVIEW_REJECTED'] ? (
+        currStatus == 'PENDING_REVIEW' &&
+        isCustodian() &&
+        request.resource.data.review.reviewerEmail == userEmail &&
+        diffKeys.hasOnly(['status', 'review', 'timeline', 'updatedAt'])
+      ) : nextStatus in ['APPROVED_WAITING_PICKUP', 'REJECTED'] ? (
+        currStatus == 'PENDING_APPROVAL' &&
+        isApprover() &&
+        resource.data.review.result == 'PASSED' &&
+        request.resource.data.approval.approverEmail == userEmail &&
+        diffKeys.hasOnly(['status', 'approval', 'timeline', 'updatedAt'])
+      ) : nextStatus == 'IN_USE' ? (
+        currStatus == 'APPROVED_WAITING_PICKUP' &&
+        (isCustodian() || isApprover()) &&
+        get(/databases/$(database)/documents/equipments/$(resource.data.equipment.equipmentId)).data.status != 'MAINTENANCE' &&
+        get(/databases/$(database)/documents/equipments/$(resource.data.equipment.equipmentId)).data.status != 'LOST' &&
+        diffKeys.hasOnly(['status', 'handover', 'timeline', 'updatedAt'])
+      ) : nextStatus == 'OVERDUE' ? (
+        currStatus == 'IN_USE' &&
+        (isCustodian() || isApprover()) &&
+        diffKeys.hasOnly(['status', 'timeline', 'updatedAt'])
+      ) : nextStatus in ['RETURNED', 'RETURNED_DAMAGED', 'LOST'] ? (
+        currStatus in ['IN_USE', 'OVERDUE'] &&
+        (isCustodian() || isApprover()) &&
+        getAfter(bookingPath).data.status == 'RETURNED' &&
+        diffKeys.hasOnly(['status', 'returnInfo', 'timeline', 'updatedAt', 'extension'])
+      ) : false;
+    }
+
+    function isExtensionActionValid() {
+      let nextExt = request.resource.data.extension;
+      let nextExtStatus = nextExt.status;
+      let diffKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let userEmail = request.auth.token.email.lower();
+      let bookingPath = /databases/$(database)/documents/equipment_bookings/$(resource.data.id);
+      let prevDeadline = ('deadlineVersion' in resource.data && resource.data.deadlineVersion is int) ? resource.data.deadlineVersion : 1;
+      let prevHist = ('extensionHistory' in resource.data && resource.data.extensionHistory is list) ? resource.data.extensionHistory : [];
+
+      return resource.data.status in ['IN_USE', 'OVERDUE'] &&
+        (resource.data.status == 'OVERDUE' ? request.resource.data.status in ['OVERDUE', 'IN_USE'] : request.resource.data.status == resource.data.status) &&
+        (
+          nextExtStatus == 'PENDING_REVIEW' ? (
+            userEmail == resource.data.borrower.email.lower() &&
+            (!('extension' in resource.data) || resource.data.extension == null ||
+              resource.data.extension.status in ['CANCELLED', 'REJECTED', 'APPROVED']) &&
+            request.resource.data.status == resource.data.status &&
+            isValidDateFormat(nextExt.newExpectedReturnDate) &&
+            nextExt.newExpectedReturnDate > resource.data.expectedReturnDate &&
+            isDurationWithinMax(resource.data.startDate, nextExt.newExpectedReturnDate, 30) &&
+            nextExt.addedDays is int && nextExt.addedDays >= 1 &&
+            diffKeys.hasOnly(['extension', 'timeline', 'updatedAt'])
+          ) : nextExtStatus == 'CANCELLED' ? (
+            userEmail == resource.data.borrower.email.lower() &&
+            request.resource.data.status == resource.data.status &&
+            resource.data.extension.status in ['PENDING_REVIEW', 'PENDING_APPROVAL'] &&
+            preserveExtensionRequestFields(resource.data.extension, nextExt) &&
+            diffKeys.hasOnly(['extension', 'timeline', 'updatedAt'])
+          ) : (nextExtStatus in ['PENDING_APPROVAL', 'REJECTED'] && resource.data.extension.status == 'PENDING_REVIEW') ? (
+            isCustodian() &&
+            request.resource.data.status == resource.data.status &&
+            preserveExtensionRequestFields(resource.data.extension, nextExt) &&
+            nextExt.review.reviewerEmail == userEmail &&
+            diffKeys.hasOnly(['extension', 'timeline', 'updatedAt'])
+          ) : nextExtStatus == 'APPROVED' ? (
+            isApprover() &&
+            resource.data.extension.status == 'PENDING_APPROVAL' &&
+            resource.data.extension.review.result == 'PASSED' &&
+            preserveExtensionRequestFields(resource.data.extension, nextExt) &&
+            preserveField(resource.data.extension, nextExt, 'review') &&
+            nextExt.approval.approverEmail == userEmail &&
+            isValidDateFormat(nextExt.newExpectedReturnDate) &&
+            request.resource.data.expectedReturnDate == nextExt.newExpectedReturnDate &&
+            request.resource.data.durationDays is int &&
+            matchesDurationDays(resource.data.startDate, request.resource.data.expectedReturnDate, request.resource.data.durationDays) &&
+            isDurationWithinMax(resource.data.startDate, request.resource.data.expectedReturnDate, 30) &&
+            request.resource.data.deadlineVersion == prevDeadline + 1 &&
+            request.resource.data.extensionHistory is list &&
+            request.resource.data.extensionHistory.size() == prevHist.size() + 1 &&
+            (prevHist.size() == 0 || request.resource.data.extensionHistory[0:prevHist.size()] == prevHist) &&
+            getAfter(bookingPath).data.expectedReturnDate == request.resource.data.expectedReturnDate &&
+            getAfter(bookingPath).data.status == 'ACTIVE' &&
+            isLockUpdated(resource.data.equipment.equipmentId) &&
+            isExtBookingFree(resource.data.equipment.equipmentId, resource.data.id, resource.data.startDate, nextExt.newExpectedReturnDate) &&
+            diffKeys.hasOnly(['status', 'extension', 'extensionHistory', 'expectedReturnDate', 'deadlineVersion', 'timeline', 'updatedAt', 'durationDays'])
+          ) : nextExtStatus == 'REJECTED' ? (
+            isApprover() &&
+            request.resource.data.status == resource.data.status &&
+            resource.data.extension.status == 'PENDING_APPROVAL' &&
+            preserveExtensionRequestFields(resource.data.extension, nextExt) &&
+            preserveField(resource.data.extension, nextExt, 'review') &&
+            nextExt.approval.approverEmail == userEmail &&
+            diffKeys.hasOnly(['extension', 'extensionHistory', 'timeline', 'updatedAt'])
+          ) : false
+        );
+    }
+
+    /* CSAT Satisfaction Survey Helpers */
+    function isSurveySubmissionValid() {
+      let d = request.resource.data;
+      let curr = resource.data;
+      let diff = d.diff(curr).affectedKeys();
+      return diff.hasAny(['survey']) &&
+        diff.hasOnly(['survey', 'updatedAt']) &&
+        curr.status in ['RETURNED', 'RETURNED_DAMAGED', 'LOST'] &&
+        !('survey' in curr) &&
+        d.survey is map &&
+        d.survey.rating is int &&
+        d.survey.rating >= 1 && d.survey.rating <= 5 &&
+        isUserActive() &&
+        d.survey.submittedBy == request.auth.token.email.lower() &&
+        curr.borrower.email.lower() == request.auth.token.email.lower();
+    }
+
+    function isSurveyFollowUpValid() {
+      let d = request.resource.data;
+      let curr = resource.data;
+      let diff = d.diff(curr).affectedKeys();
+      return isStaff() &&
+        diff.hasOnly(['survey', 'updatedAt']) &&
+        ('survey' in curr) &&
+        d.survey is map &&
+        d.survey.rating == curr.survey.rating &&
+        d.survey.submittedBy == curr.survey.submittedBy &&
+        d.survey.submittedAt == curr.survey.submittedAt;
+    }
+
+    function isSurveyInviteTrackingValid() {
+      let d = request.resource.data;
+      let curr = resource.data;
+      let diff = d.diff(curr).affectedKeys();
+      // Client staff is strictly restricted to recording QUEUED state only.
+      // surveyInviteSentAt and surveyInviteStatus='SENT' MUST only be written by trusted server (Admin SDK).
+      return diff.hasAny(['surveyInviteQueuedAt', 'surveyInviteStatus', 'surveyInviteCount']) &&
+        isStaff() &&
+        curr.status in ['RETURNED', 'RETURNED_DAMAGED', 'LOST'] &&
+        !('survey' in curr) &&
+        diff.hasOnly(['surveyInviteQueuedAt', 'surveyInviteStatus', 'surveyInviteCount', 'updatedAt']) &&
+        (!('surveyInviteStatus' in d) || d.surveyInviteStatus == 'QUEUED') &&
+        !('surveyInviteSentAt' in diff);
+    }
+
+    function isPolicySchemaClean(d) {
+      return d.keys().hasOnly([
+        'maxBorrowDays',
+        'advanceReminderDays',
+        'enableTwoStepApproval',
+        'enableTestMode',
+        'enableEmailNotifications',
+        'guidelines',
+        'custodianEmail',
+        'approverEmail',
+        'emailProvider',
+        'gasWebhookUrl',
+        'gasSecretToken',
+        'gasSenderName',
+        'gasSenderEmail',
+        'brevoApiKey',
+        'brevoSenderEmail',
+        'brevoSenderName',
+        'resendApiKey',
+        'resendSender',
+        'updatedAt',
+        'updatedBy',
+        'sanitizedAt',
+        'sanitizedBy',
+        'rolledBackAt',
+        'rolledBackBy',
+        'rolledBackFromBackup'
+      ]) &&
+      (!('maxBorrowDays' in d) || (d.maxBorrowDays is int && d.maxBorrowDays >= 1 && d.maxBorrowDays <= 365)) &&
+      (!('advanceReminderDays' in d) || (d.advanceReminderDays is int && d.advanceReminderDays >= 0 && d.advanceReminderDays <= 60)) &&
+      (!('enableTwoStepApproval' in d) || d.enableTwoStepApproval is bool) &&
+      (!('enableTestMode' in d) || d.enableTestMode is bool) &&
+      (!('enableEmailNotifications' in d) || d.enableEmailNotifications is bool) &&
+      (!('guidelines' in d) || (d.guidelines is string && d.guidelines.size() <= 5000)) &&
+      (!('custodianEmail' in d) || (d.custodianEmail is string && d.custodianEmail.size() <= 320)) &&
+      (!('approverEmail' in d) || (d.approverEmail is string && d.approverEmail.size() <= 320)) &&
+      (!('emailProvider' in d) || (d.emailProvider is string && d.emailProvider in ['NONE', 'GOOGLE_APPS_SCRIPT', 'BREVO', 'RESEND', 'MOCK'])) &&
+      (!('gasWebhookUrl' in d) || (d.gasWebhookUrl is string && d.gasWebhookUrl.size() <= 1000)) &&
+      (!('gasSecretToken' in d) || (d.gasSecretToken is string && d.gasSecretToken.size() <= 500)) &&
+      (!('gasSenderName' in d) || (d.gasSenderName is string && d.gasSenderName.size() <= 300)) &&
+      (!('gasSenderEmail' in d) || (d.gasSenderEmail is string && d.gasSenderEmail.size() <= 320)) &&
+      (!('brevoApiKey' in d) || (d.brevoApiKey is string && d.brevoApiKey.size() <= 500)) &&
+      (!('brevoSenderEmail' in d) || (d.brevoSenderEmail is string && d.brevoSenderEmail.size() <= 320)) &&
+      (!('brevoSenderName' in d) || (d.brevoSenderName is string && d.brevoSenderName.size() <= 300)) &&
+      (!('resendApiKey' in d) || (d.resendApiKey is string && d.resendApiKey.size() <= 500)) &&
+      (!('resendSender' in d) || (d.resendSender is string && d.resendSender.size() <= 320)) &&
+      (!('updatedAt' in d) || d.updatedAt is timestamp || (d.updatedAt is string && d.updatedAt.size() <= 64)) &&
+      (!('updatedBy' in d) || (d.updatedBy is string && d.updatedBy.size() <= 320)) &&
+      (!('sanitizedAt' in d) || d.sanitizedAt is timestamp || (d.sanitizedAt is string && d.sanitizedAt.size() <= 64)) &&
+      (!('sanitizedBy' in d) || (d.sanitizedBy is string && d.sanitizedBy.size() <= 320)) &&
+      (!('rolledBackAt' in d) || d.rolledBackAt is timestamp || (d.rolledBackAt is string && d.rolledBackAt.size() <= 64)) &&
+      (!('rolledBackBy' in d) || (d.rolledBackBy is string && d.rolledBackBy.size() <= 320)) &&
+      (!('rolledBackFromBackup' in d) || d.rolledBackFromBackup is bool);
+    }
+
+    function isClientPolicyWriteValid() {
+      let d = request.resource.data;
+      return isCustodianOrAdmin() &&
+        isPolicySchemaClean(d) &&
+        (
+          resource == null
+            ? !d.keys().hasAny(['sanitizedAt', 'sanitizedBy', 'rolledBackAt', 'rolledBackBy', 'rolledBackFromBackup'])
+            : !d.diff(resource.data).affectedKeys().hasAny(['sanitizedAt', 'sanitizedBy', 'rolledBackAt', 'rolledBackBy', 'rolledBackFromBackup'])
+        );
+    }
+
+    /* ============================================================
+       1. System Settings & Policies
+       ============================================================ */
+    // Non-secret policy document: Readable by active users ONLY IF it strictly matches the allowlisted schema.
+    // Fail-closed safeguard: Any legacy secret, unknown field, or nested map/list causes all client reads to be denied.
+    // Writable by Custodian/Admin with strict allowlisted keys and primitive types only.
+    match /system_settings/policy {
+      allow read: if isUserActive() && (resource == null || isPolicySchemaClean(resource.data));
+      allow create, update: if isClientPolicyWriteValid();
+      allow delete: if false;
+    }
+
+    // Gateway Config Document & all other system settings: Contain sensitive credentials.
+    // Strictly SERVER-ONLY (Admin SDK). Denied to ALL client roles (including Custodian/Approver/Executive).
+    match /system_settings/{settingId} {
+      allow read, write: if false;
+    }
+    
+    /* ============================================================
+       2. Users Collection (Profile & Role Directory)
+       ============================================================ */
+    match /users/{email} {
+      allow read: if isUserActive() || (isAuthenticated() && request.auth.token.email.lower() == email.lower());
+      allow create, update, delete: if isCustodianOrAdmin();
+    }
+    
+    /* ============================================================
+       3. Departments & Categories
+       ============================================================ */
+    match /departments/{deptId} {
+      allow read: if isUserActive();
+      allow write: if isCustodianOrAdmin();
+    }
+    
+    match /categories/{catId} {
+      allow read: if isUserActive();
+      allow write: if isCustodianOrAdmin();
+    }
+    
+    /* ============================================================
+       4. Equipments Collection
+       ============================================================ */
+    match /equipments/{eqId} {
+      allow read: if isUserActive();
+      allow create, delete: if isCustodianOrAdmin();
+      allow update: if isCustodianOrAdmin() ||
+        (isApprover() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'lastBookingUpdatedAt', 'activeBookings'])) ||
+        (isUserActive() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastBookingUpdatedAt', 'activeBookings']));
+    }
+    
+    /* ============================================================
+       5. Borrow Requests Collection (Workflow & State Transitions)
+       ============================================================ */
+    match /borrow_requests/{reqId} {
+      // Read: Borrower can read own request; Staff can read all requests
+      allow read: if isUserActive() && (
+        resource.data.borrower.email.lower() == request.auth.token.email.lower() ||
+        isStaff()
+      );
+
+      // Create: Active borrower creating request for self, initial status PENDING_REVIEW, strict durationDays & date relation
+      allow create: if isUserActive() &&
+        request.resource.data.borrower.email.lower() == request.auth.token.email.lower() &&
+        request.resource.data.status == 'PENDING_REVIEW' &&
+        isValidDateFormat(request.resource.data.startDate) &&
+        isValidDateFormat(request.resource.data.expectedReturnDate) &&
+        request.resource.data.expectedReturnDate >= request.resource.data.startDate &&
+        request.resource.data.durationDays is int &&
+        matchesDurationDays(request.resource.data.startDate, request.resource.data.expectedReturnDate, request.resource.data.durationDays) &&
+        isDurationWithinMax(request.resource.data.startDate, request.resource.data.expectedReturnDate, 30) &&
+        (isDurationWithinMax(request.resource.data.startDate, request.resource.data.expectedReturnDate, 15) || (
+          request.resource.data.isException == true &&
+          request.resource.data.exceptionReason is string &&
+          request.resource.data.exceptionReason.size() > 0
+        )) &&
+        (!('approval' in request.resource.data) || request.resource.data.approval == null) &&
+        (!('handover' in request.resource.data) || request.resource.data.handover == null) &&
+        (!('returnInfo' in request.resource.data) || request.resource.data.returnInfo == null) &&
+        (!('review' in request.resource.data) || request.resource.data.review == null) &&
+        (!('cancel' in request.resource.data) || request.resource.data.cancel == null) &&
+        (!('extension' in request.resource.data) || request.resource.data.extension == null) &&
+        existsAfter(/databases/$(database)/documents/equipment_bookings/$(reqId)) &&
+        getAfter(/databases/$(database)/documents/equipment_bookings/$(reqId)).data.equipmentId == request.resource.data.equipment.equipmentId &&
+        getAfter(/databases/$(database)/documents/equipment_bookings/$(reqId)).data.startDate == request.resource.data.startDate &&
+        getAfter(/databases/$(database)/documents/equipment_bookings/$(reqId)).data.expectedReturnDate == request.resource.data.expectedReturnDate &&
+        getAfter(/databases/$(database)/documents/equipment_bookings/$(reqId)).data.status == 'ACTIVE' &&
+        isEquipmentAvailableForBorrow(request.resource.data.equipment.equipmentId) &&
+        isLockUpdated(request.resource.data.equipment.equipmentId) &&
+        isBookingFree(request.resource.data.equipment.equipmentId, request.resource.data.startDate, request.resource.data.expectedReturnDate);
+
+      // Update: Enforce actor role, state transition, survey submission, follow-up tracking, and strictly append-only timeline & history
+      allow update: if isSurveySubmissionValid() || isSurveyFollowUpValid() || isSurveyInviteTrackingValid() || (isUserActive() &&
+        request.resource.data.timeline.size() > resource.data.timeline.size() &&
+        request.resource.data.timeline[0:resource.data.timeline.size()] == resource.data.timeline &&
+        (
+          (request.resource.data.diff(resource.data).affectedKeys().hasAny(['extension']) && isExtensionActionValid()) ||
+          (request.resource.data.status != resource.data.status && isStatusChangeValid(reqId))
+        ));
+
+      allow delete: if isCustodianOrAdmin();
+    }
+    
+    function isValidCounterKey(k) {
+      return k is string && k.size() == 6 &&
+        k >= '202401' && k <= '203012';
+    }
+
+    function isKeyValidInc(k) {
+      return isValidCounterKey(k) &&
+        request.resource.data[k] is int &&
+        (
+          !(k in resource.data) ? request.resource.data[k] == 1 :
+          request.resource.data[k] == resource.data[k] + 1
+        );
+    }
+
+    function checkCounterKey(k) {
+      return !(k in resource.data) || request.resource.data[k] != resource.data[k]
+        ? isKeyValidInc(k)
+        : request.resource.data[k] == resource.data[k];
+    }
+
+    function isCounterIncrementValid() {
+      let keys = request.resource.data.keys();
+      let sz = keys.size();
+      return request.resource.data.diff(resource.data).affectedKeys().size() == 1 &&
+        keys.hasAll(resource.data.keys()) &&
+        checkCounterKey(keys[0]) &&
+        (sz <= 1 || (checkCounterKey(keys[1]) &&
+        (sz <= 2 || (checkCounterKey(keys[2]) &&
+        (sz <= 3 || checkCounterKey(keys[3]))))));
+    }
+
+    /* ============================================================
+       6. Counters (Running Number Sequence - Atomic Inc Only)
+       ============================================================ */
+    match /counters/{counterId} {
+      allow read: if isUserActive();
+      allow create: if isUserActive() &&
+        request.resource.data.keys().size() == 1 &&
+        isValidCounterKey(request.resource.data.keys()[0]) &&
+        request.resource.data.values()[0] is int &&
+        request.resource.data.values()[0] >= 1;
+      allow update: if isUserActive() && isCounterIncrementValid();
+      allow delete: if isCustodianOrAdmin();
+    }
+    
+    /* ============================================================
+       7. Equipment Bookings (Fast Conflict Check Projection)
+       ============================================================ */
+    match /equipment_bookings/{bookingId} {
+      allow read: if isUserActive();
+
+      // Legacy loans may predate booking documents. Only a verified atomic
+      // return may create their closed booking; never create an active slot.
+      allow create: if (isCustodian() || isApprover()) &&
+        exists(/databases/$(database)/documents/borrow_requests/$(bookingId)) &&
+        get(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.status in ['IN_USE', 'OVERDUE'] &&
+        getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.status in ['RETURNED', 'RETURNED_DAMAGED', 'LOST'] &&
+        getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.returnInfo.receivedByEmail == request.auth.token.email.lower() &&
+        request.resource.data.status == 'RETURNED' &&
+        request.resource.data.requestId == bookingId &&
+        request.resource.data.equipmentId == get(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.equipment.equipmentId &&
+        request.resource.data.startDate == get(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.startDate &&
+        request.resource.data.expectedReturnDate == get(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.expectedReturnDate &&
+        request.resource.data.keys().hasOnly(['equipmentId', 'startDate', 'expectedReturnDate', 'requestId', 'status', 'updatedAt']);
+      
+      // Strict creation rule
+      allow create: if isUserActive() &&
+        isEquipmentAvailableForBorrow(request.resource.data.equipmentId) &&
+        existsAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)) &&
+        getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.equipment.equipmentId == request.resource.data.equipmentId &&
+        getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.startDate == request.resource.data.startDate &&
+        getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.expectedReturnDate == request.resource.data.expectedReturnDate &&
+        getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.status == 'PENDING_REVIEW' &&
+        request.resource.data.status == 'ACTIVE' &&
+        request.resource.data.requestId == bookingId &&
+        request.resource.data.keys().hasOnly(['equipmentId', 'startDate', 'expectedReturnDate', 'requestId', 'status', 'updatedAt']);
+
+      // Strict update rule
+      allow update: if isUserActive() &&
+        existsAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)) &&
+        request.resource.data.equipmentId == resource.data.equipmentId &&
+        request.resource.data.requestId == resource.data.requestId &&
+        request.resource.data.startDate == resource.data.startDate &&
+        (
+          (
+            // Approver approving extension
+            isApprover() &&
+            request.resource.data.status == 'ACTIVE' &&
+            isValidDateFormat(request.resource.data.expectedReturnDate) &&
+            request.resource.data.expectedReturnDate == getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.expectedReturnDate &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['expectedReturnDate', 'status', 'updatedAt'])
+          ) ||
+          (
+            // Borrower or Custodian cancelling request / no-show cancel
+            request.resource.data.status == 'CANCELLED' &&
+            request.resource.data.expectedReturnDate == resource.data.expectedReturnDate &&
+            getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.status == 'CANCELLED' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          ) ||
+          (
+            // Custodian or Approver completing return
+            (isCustodian() || isApprover()) &&
+            request.resource.data.status == 'RETURNED' &&
+            request.resource.data.expectedReturnDate == resource.data.expectedReturnDate &&
+            getAfter(/databases/$(database)/documents/borrow_requests/$(bookingId)).data.status in ['RETURNED', 'RETURNED_DAMAGED', 'LOST'] &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isCustodianOrAdmin();
+    }
+    
+    /* ============================================================
+       8. Audit Logs (Immutable Append-Only Security Trail)
+       ============================================================ */
+    match /audit_logs/{logId} {
+      allow read: if isStaff();
+      allow create: if isUserActive() && 
+        request.resource.data.actorEmail == request.auth.token.email.lower();
+      allow update, delete: if false; // Strict immutability
+    }
+
+    /* ============================================================
+    /* Mail Security Helpers */
+    function isValidMailRecipient(targetEmail) {
+      return targetEmail == request.auth.token.email.lower() ||
+        (exists(/databases/$(database)/documents/users/$(targetEmail)) &&
+         get(/databases/$(database)/documents/users/$(targetEmail)).data.role in ['CUSTODIAN', 'APPROVER', 'EXECUTIVE']);
+    }
+
+    function isSafeBorrowerMailJob() {
+      let d = request.resource.data;
+      let reqPath = /databases/$(database)/documents/borrow_requests/$(d.requestId);
+      return isUserActive() &&
+        d.keys().hasAll(['to', 'message', 'status', 'type', 'senderEmail', 'requestId']) &&
+        d.status == 'PENDING' &&
+        (!('attemptCount' in d) || d.attemptCount == 0) &&
+        (!('sentAt' in d)) &&
+        d.senderEmail == request.auth.token.email.lower() &&
+        d.type in ['NEW_REQUEST', 'REQUEST_CONFIRMATION', 'CANCELLED', 'EXTENSION_REQUESTED'] &&
+        d.to is list &&
+        d.to.size() >= 1 &&
+        d.to.size() <= 2 &&
+        isValidMailRecipient(d.to[0]) &&
+        (d.to.size() == 1 || isValidMailRecipient(d.to[1])) &&
+        d.message is map &&
+        'subject' in d.message &&
+        exists(reqPath) &&
+        get(reqPath).data.borrower.email.lower() == request.auth.token.email.lower();
+    }
+
+    function isSafeStaffMailJob() {
+      let d = request.resource.data;
+      return isStaff() &&
+        d.keys().hasAll(['to', 'message', 'status', 'type']) &&
+        d.status == 'PENDING' &&
+        (!('attemptCount' in d) || d.attemptCount == 0) &&
+        (!('sentAt' in d)) &&
+        d.to is list &&
+        d.to.size() >= 1 &&
+        d.message is map &&
+        'subject' in d.message;
+    }
+
+    function isSafeStaffMailRetryOrSweep() {
+      let d = request.resource.data;
+      let curr = resource.data;
+      let diff = d.diff(curr).affectedKeys();
+
+      return isStaff() &&
+        // Only allow staff client to signal retry or sweep, and update timestamp
+        diff.hasOnly(['retryRequestedAt', 'sweepRequestedAt', 'updatedAt']) &&
+        diff.hasAny(['retryRequestedAt', 'sweepRequestedAt']) &&
+        // Disallow retry on terminal SUCCESS, active PROCESSING, or reconciliation required
+        curr.status in ['PENDING', 'FAILED', 'ERROR'] &&
+        curr.status != 'SUCCESS' &&
+        curr.status != 'PROCESSING' &&
+        curr.status != 'RECONCILIATION_REQUIRED' &&
+        (!('requiresReconciliation' in curr) || curr.requiresReconciliation != true) &&
+        // Guard against MAX_ATTEMPTS_EXCEEDED
+        ((!('maxAttempts' in curr) && (!('attemptCount' in curr) || curr.attemptCount < 3)) ||
+         ('maxAttempts' in curr && (!('attemptCount' in curr) || curr.attemptCount < curr.maxAttempts))) &&
+        // Guard against nextAttemptAt > now (Backoff period must have expired)
+        (!('nextAttemptAt' in curr) || curr.nextAttemptAt == null || curr.nextAttemptAt <= request.time) &&
+        // Ensure status, recipients, and message payload are strictly identical
+        d.status == curr.status &&
+        d.to == curr.to &&
+        d.message == curr.message;
+    }
+
+    function isSafeMailStatusUpdate() {
+      let d = request.resource.data;
+      let curr = resource.data;
+      let diff = d.diff(curr).affectedKeys();
+      return isUserActive() &&
+        // Only allow updating status and tracking metadata
+        diff.hasOnly(['status', 'sentAt', 'failedAt', 'errorDetails', 'messageId', 'updatedAt', 'attemptCount', 'lastAttemptAt', 'metadata']) &&
+        d.status in ['SUCCESS', 'FAILED', 'SKIPPED'] &&
+        curr.status != 'SUCCESS';
+    }
+
+    /* ============================================================
+       9. Mail & Mail Queue (Background Asynchronous Dispatch Queue)
+       ============================================================ */
+    match /mail/{mailId} {
+      allow create: if isSafeStaffMailJob() || isSafeBorrowerMailJob();
+      // ผู้ส่งอ่านได้เฉพาะงานที่มี ID ผูกกับอีเมลตน เพื่อทำ transaction กันซ้ำ
+      allow read: if isStaff() || (
+        isUserActive() && (
+          mailId.matches(request.auth.token.email.lower() + '_[a-f0-9]{64}') ||
+          (resource != null && 'senderEmail' in resource.data && resource.data.senderEmail.lower() == request.auth.token.email.lower())
+        )
+      );
+      // อนุญาต Staff ส่งสัญญาณ retry/sweep หรือ Client อัปเดตสถานะผลการส่งจริง (SUCCESS/FAILED/SKIPPED)
+      allow update: if isSafeStaffMailRetryOrSweep() || isSafeMailStatusUpdate();
+      allow delete: if isCustodianOrAdmin();
+    }
+
+    match /mail_queue/{jobId} {
+      // Legacy mail_queue: Denied to all client roles (Server-side queue only)
+      allow read, write: if false;
+    }
+
+    /* ============================================================
+       10. Repair Requests (ระบบแบบฟอร์มและการจัดการงานแจ้งซ่อม)
+       ============================================================ */
+    match /repair_requests/{repairId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      // ป้องกันการแก้ข้อมูลเดิมหลังอนุมัติ:
+      // เมื่อได้รับการอนุมัติแล้ว (APPROVED, IN_REPAIR, COMPLETED)
+      // ห้ามแก้ไข items, subject, documentDate, requesterEmail, requesterName, recipient
+      allow update: if isStaff() && (
+        resource.data.status in ['DRAFT', 'PENDING_REVIEW'] ||
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'items', 'subject', 'documentDate', 'docDay', 'docMonth', 'docYear',
+          'requesterEmail', 'requesterName', 'requesterPosition', 'requesterDivision',
+          'recipient'
+        ])
+      );
+      allow delete: if isCustodianOrAdmin();
+    }
+  }
+}
