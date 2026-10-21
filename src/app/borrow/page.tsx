@@ -83,12 +83,6 @@ function BorrowForm() {
     };
   }, [confirmModalOpen]);
 
-  if (loading || !profile) {
-    return <LoadingState text="กำลังโหลดแบบฟอร์ม..." />;
-  }
-
-  const me = profile;
-
   // Calculate raw duration
   const rawDuration = start && end && start <= end ? daysInclusive(start, end) : 0;
   const isException = rawDuration > MAX_BORROW_DAYS;
@@ -104,6 +98,14 @@ function BorrowForm() {
     [eq, requests, start, end]
   );
   const borrowInfo = useMemo(() => (eq ? getActiveBorrowInfo(eq, requests, today) : null), [eq, requests, today]);
+  const availability = useMemo(() => validateEquipmentAvailability(eq), [eq]);
+
+  // Keep every Hook above loading and missing-equipment returns.
+  if (loading || !profile) {
+    return <LoadingState text="กำลังโหลดแบบฟอร์ม..." />;
+  }
+
+  const me = profile;
 
   // Quick Date Presets
   const setQuickDates = (type: 'same_day' | 'business_3' | 'week_1' | 'max_15') => {
@@ -141,8 +143,6 @@ function BorrowForm() {
       </div>
     );
   }
-
-  const availability = useMemo(() => validateEquipmentAvailability(eq), [eq]);
 
   const handlePreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
